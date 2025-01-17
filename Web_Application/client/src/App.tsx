@@ -1,6 +1,6 @@
 import React from "react";
 import "./App.css";
-import Chatbot from "../../moodsync/src/pages/Chatbot.tsx";
+import Chatbot from "./pages/Chatbot.tsx";
 
 const App: React.FC = () => {
   return (

@@ -53,7 +53,7 @@ const Chatbot: React.FC = () => {
   return (
     <div style={{ padding: "20px" }}>
       <div>
-        {messages.map((msg, index) => (
+        {messages.map((msg: Message, index: number) => (
           <div key={index} style={{ textAlign: msg.isUser ? "right" : "left" }}>
             <p
               style={{
