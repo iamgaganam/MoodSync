@@ -1,14 +1,14 @@
 import React from "react";
-import { useState } from "react";
 import "./App.css";
-import MainPage from "./pages/MainPage";
+import Chatbot from "../../moodsync/src/pages/Chatbot.tsx";
 
 const App: React.FC = () => {
-  const [count, setCount] = useState<number>(0);
-
   return (
-    <div>
-      <MainPage />
+    <div className="App">
+      <header className="App-header">
+        <h1>Mental Health Chatbot</h1>
+      </header>
+      <Chatbot />
     </div>
   );
 };
