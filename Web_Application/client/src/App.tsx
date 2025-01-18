@@ -1,13 +1,10 @@
 import React from "react";
 import "./App.css";
-import Chatbot from "./pages/Chatbot.tsx";
+import Chatbot from "./features/Chatbot.tsx";
 
 const App: React.FC = () => {
   return (
     <div className="App">
-      <header className="App-header">
-        <h1>Mental Health Chatbot</h1>
-      </header>
       <Chatbot />
     </div>
   );

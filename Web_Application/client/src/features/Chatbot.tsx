@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import axios from "axios";
+import styles from "../styles/Chatbot.module.css";
 
 interface Message {
   text: string;
@@ -12,20 +13,16 @@ const Chatbot: React.FC = () => {
 
   const handleSend = async () => {
     if (inputText.trim()) {
-      // Display the user message
       setMessages([...messages, { text: inputText, isUser: true }]);
 
       try {
-        // Send the user's input to the backend for prediction
         const response = await axios.post("http://127.0.0.1:8000/predict/", {
           statement: inputText,
         });
 
-        // Extract sentiment and confidence scores
         const sentiment = response.data.sentiment;
         const confidence = response.data.confidence;
 
-        // Display the response from the backend
         setMessages([
           ...messages,
           { text: inputText, isUser: true },
@@ -45,43 +42,46 @@ const Chatbot: React.FC = () => {
         ]);
       }
 
-      // Clear the input field
       setInputText("");
     }
   };
 
   return (
-    <div style={{ padding: "20px" }}>
-      <div>
-        {messages.map((msg: Message, index: number) => (
-          <div key={index} style={{ textAlign: msg.isUser ? "right" : "left" }}>
-            <p
-              style={{
-                display: "inline-block",
-                padding: "10px",
-                backgroundColor: msg.isUser ? "#f1f1f1" : "#d9fdd3",
-                borderRadius: "10px",
-              }}
+    <div className={styles["page-wrapper"]}>
+      <div className={styles["chat-container"]}>
+        {/* Header Section */}
+        <div className={styles["chat-header"]}>
+          <h1 className={styles["chat-title"]}>Gemini</h1>
+          <span className={styles["chat-subtitle"]}>1.5 Flash</span>
+        </div>
+
+        {/* Chat Messages */}
+        <div className={styles["chat-messages"]}>
+          {messages.map((msg, index) => (
+            <div
+              key={index}
+              className={`${styles.message} ${
+                msg.isUser ? styles["message-user"] : styles["message-bot"]
+              }`}
             >
-              {msg.text}
-            </p>
-          </div>
-        ))}
-      </div>
-      <div style={{ marginTop: "20px" }}>
-        <input
-          type="text"
-          value={inputText}
-          onChange={(e) => setInputText(e.target.value)}
-          placeholder="Type a message..."
-          style={{ padding: "10px", width: "80%" }}
-        />
-        <button
-          onClick={handleSend}
-          style={{ padding: "10px", marginLeft: "10px" }}
-        >
-          Send
-        </button>
+              <div className={styles["message-bubble"]}>{msg.text}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Input Section */}
+        <div className={styles["input-container"]}>
+          <input
+            type="text"
+            value={inputText}
+            onChange={(e) => setInputText(e.target.value)}
+            placeholder="Type a message..."
+            className={styles["input-box"]}
+          />
+          <button onClick={handleSend} className={styles["send-button"]}>
+            Send
+          </button>
+        </div>
       </div>
     </div>
   );
