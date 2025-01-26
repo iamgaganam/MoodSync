@@ -1,4 +1,3 @@
-/* Page Wrapper */
 .page-wrapper {
   display: flex;
   align-items: center;
@@ -145,4 +144,64 @@
 .send-button:hover {
   background-color: #1e40af;
   transform: scale(1.05);
+}
+
+/* Light Mode */
+.light-mode {
+  background-color: #f9f9f9; /* Light background */
+  color: #333; /* Darker text for contrast */
+}
+
+.light-mode .chat-container {
+  background-color: #ffffff; /* White chatbox background */
+  color: #333;
+}
+
+.light-mode .chat-header {
+  background-color: #f1f1f1; /* Light header background */
+  border-bottom: 1px solid #ddd;
+}
+
+.light-mode .chat-messages {
+  background-color: #f9f9f9; /* Lighter chat background */
+}
+
+.light-mode .message-user .message-bubble {
+  background-color: #007aff; /* Blue for user messages */
+  color: white;
+}
+
+.light-mode .message-bot .message-bubble {
+  background-color: #e0e0e0; /* Gray for bot messages */
+  color: #333;
+}
+
+.light-mode .input-container {
+  background-color: #f1f1f1;
+  border-top: 1px solid #ddd;
+}
+
+.light-mode .input-box {
+  background-color: #e9e9e9;
+  color: #333;
+}
+
+.light-mode .send-button {
+  background-color: #007aff;
+  color: white;
+}
+
+.theme-toggle {
+  margin-left: auto;
+  background: none;
+  border: none;
+  color: inherit;
+  font-size: 1rem;
+  cursor: pointer;
+  padding: 0.5rem;
+  transition: color 0.3s ease;
+}
+
+.theme-toggle:hover {
+  color: #007aff;
 }

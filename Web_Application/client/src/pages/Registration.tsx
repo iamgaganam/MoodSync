@@ -8,7 +8,7 @@ const Registration = () => {
   const [mobileNumber, setMobileNumber] = useState("");
   const [emergencyContact, setEmergencyContact] = useState("");
   const [errors, setErrors] = useState<{
-    [key: string]: string; // Allow any string key
+    [key: string]: string;
   }>({
     username: "",
     email: "",
@@ -117,7 +117,7 @@ const Registration = () => {
                   id={field}
                   className={`input ${errors[field] ? "input-error" : ""}`}
                   placeholder={formatPlaceholder(field)}
-                  value={eval(field) || ""} // Ensure default empty string
+                  value={eval(field) || ""}
                   onChange={(e) => {
                     const setter = {
                       username: setUsername,
@@ -128,7 +128,7 @@ const Registration = () => {
                       emergencyContact: setEmergencyContact,
                     }[field];
 
-                    setter?.(e.target.value); // Safe call to setter
+                    setter?.(e.target.value);
                   }}
                   onBlur={() => handleBlur(field)}
                   required
