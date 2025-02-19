@@ -8,7 +8,19 @@ module.exports = {
     "./node_modules/flowbite/**/*.js",
   ],
   theme: {
-    extend: {},
+    extend: {
+      // Add any customizations here
+      colors: {
+        customBlue: "#1D4ED8", // Example of adding a custom color
+      },
+      fontFamily: {
+        sans: ["Inter", "sans-serif"], // Example of adding a custom font
+      },
+    },
   },
-  plugins: [flowbite],
+  plugins: [
+    flowbite, // Flowbite plugin
+    require("@tailwindcss/typography"), // Example of additional plugin
+    require("@tailwindcss/forms"), // Example of additional plugin
+  ],
 };

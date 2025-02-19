@@ -106,7 +106,10 @@ const Login = () => {
             justify-content: center;
             align-items: center;
             height: 100vh;
-            background-color: white;
+            background-image: url('/src/assets/3.jpg');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
           }
 
           .login-box {
@@ -114,11 +117,14 @@ const Login = () => {
             max-width: 400px;
             width: 100%;
             padding: 24px;
+            background-color: rgba(255, 255, 255, 0.8); /* Slightly transparent background for form */
+            border-radius: 8px;
           }
 
           .logo-box {
             margin-bottom: 24px;
           }
+
           .logo-placeholder {
             width: 80px;
             height: 80px;
@@ -129,6 +135,7 @@ const Login = () => {
             align-items: center;
             border-radius: 50%;
           }
+
           .logo-line {
             width: 24px;
             height: 2px;

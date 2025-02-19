@@ -175,7 +175,10 @@ const Registration = () => {
             justify-content: center;
             align-items: center;
             height: 100vh;
-            background-color: white;
+            background-image: url('/src/assets/3.jpg');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
           }
 
           .registration-box {
@@ -184,6 +187,8 @@ const Registration = () => {
             width: 100%;
             padding: 24px;
             box-sizing: border-box;
+            background-color: rgba(255, 255, 255, 0.8); /* Slightly transparent background for form */
+            border-radius: 8px;
           }
 
           /* Logo Styling */
