@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 from pydantic import BaseModel
-from app.models.sentiment_model import predict_sentiment  # Corrected import
-from app.models.preprocessing import preprocess_text  # Corrected import
+from server.app.models.sentiment_model import predict_sentiment
+from server.app.models.preprocessing import preprocess_text
 
 # Pydantic model for input validation
 class StatementRequest(BaseModel):
