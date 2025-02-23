@@ -1,49 +1,33 @@
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.security import OAuth2PasswordBearer
-from jose import JWTError, jwt
+from server.app.api.auth import router as auth_router
+from server.app.api.protected import router as protected_router
 from server.app.api.sentiment import router as sentiment_router
-from server.app.api import auth
-from server.app.services.auth_service import SECRET_KEY, ALGORITHM
 
-# Initialize FastAPI app
 app = FastAPI()
 
-# Add CORS middleware to allow requests from the frontend
+# CORS configuration (retaining the first file's settings)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allow all origins; replace with frontend URL in production
+    allow_origins=["http://localhost:5175"],  # or ["*"] for development
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# OAuth2 bearer token
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
+# Include routers from the first main.py
+app.include_router(auth_router, prefix="", tags=["auth"])
+app.include_router(protected_router, prefix="", tags=["protected"])
 
-# Token verification
-def get_current_user(token: str = Depends(oauth2_scheme)):
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        email: str = payload.get("sub")
-        if email is None:
-            raise HTTPException(status_code=401, detail="Invalid token")
-        return email
-    except JWTError:
-        raise HTTPException(status_code=401, detail="Invalid token")
-
-# Include authentication routes
-app.include_router(auth.router)
-
-# Include the sentiment API router
+# Include extra router from the second main.py
 app.include_router(sentiment_router)
 
-# Home route for logged-in users
-@app.get("/home")
-async def home(current_user: str = Depends(get_current_user)):
-    return {"message": f"Welcome, {current_user}!"}
-
-# Health check endpoint
+# Root endpoint (unchanged from the first main.py)
 @app.get("/")
-async def root():
+def root():
+    return {"message": "Hello from FastAPI + MongoDB + JWT!"}
+
+# Extra health check endpoint from the second main.py added at a different route
+@app.get("/health")
+async def health_check():
     return {"message": "Hello, this is the mental health prediction API."}

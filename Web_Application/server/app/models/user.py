@@ -1,22 +1,24 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
 
-class UserIn(BaseModel):
+class UserBase(BaseModel):
     username: str
-    email: str
-    password: str
+    email: EmailStr
     mobileNumber: str
     emergencyContact: str
 
-class UserOut(BaseModel):
-    username: str
-    email: str
-    mobileNumber: str
-    emergencyContact: str
-
-class LoginRequest(BaseModel):
-    email: str
+class UserIn(UserBase):
     password: str
+
+class UserOut(UserBase):
+    pass
 
 class Token(BaseModel):
     access_token: str
     token_type: str
+
+class TokenData(BaseModel):
+    email: str | None = None
+
+class LoginRequest(BaseModel):
+    email: EmailStr
+    password: str

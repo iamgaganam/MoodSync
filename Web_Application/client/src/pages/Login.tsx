@@ -1,8 +1,10 @@
 import React, { useState } from "react";
+import axios from "axios";
 
 const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [serverError, setServerError] = useState("");
   const [errors, setErrors] = useState({ email: "", password: "" });
 
   const validateEmail = (email: string) => {
@@ -33,14 +35,33 @@ const Login = () => {
     }));
   };
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    setServerError("");
+
+    // Validate inputs
     const emailError = validateEmail(email);
     const passwordError = validatePassword(password);
     setErrors({ email: emailError, password: passwordError });
 
-    if (!emailError && !passwordError) {
-      console.log("Form submitted");
+    if (emailError || passwordError) {
+      return;
+    }
+
+    try {
+      const response = await axios.post("http://127.0.0.1:8000/login", {
+        email,
+        password,
+      });
+      console.log("Login success:", response.data);
+      const { access_token } = response.data;
+      localStorage.setItem("access_token", access_token);
+
+      // Optionally navigate to a protected route
+      // navigate("/dashboard");
+    } catch (error: any) {
+      console.error(error);
+      setServerError(error.response?.data?.detail || "Login failed.");
     }
   };
 
@@ -53,6 +74,7 @@ const Login = () => {
           </div>
         </div>
         <h1 className="title">MOODSYNC!</h1>
+        {serverError && <p style={{ color: "red" }}>{serverError}</p>}
         <form className="login-form" onSubmit={handleSubmit}>
           <div className="input-container">
             <input
@@ -117,7 +139,7 @@ const Login = () => {
             max-width: 400px;
             width: 100%;
             padding: 24px;
-            background-color: rgba(255, 255, 255, 0.8); /* Slightly transparent background for form */
+            background-color: rgba(255, 255, 255, 0.8);
             border-radius: 8px;
           }
 
