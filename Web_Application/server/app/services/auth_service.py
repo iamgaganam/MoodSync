@@ -2,11 +2,16 @@ from passlib.context import CryptContext
 from pymongo import MongoClient
 from jose import JWTError, jwt
 import datetime
+import os
 from typing import Optional
+from dotenv import load_dotenv
 from server.app.models.user import LoginRequest, Token, UserIn
 
-# MongoDB URI
-uri = "mongodb+srv://gaganam220:h55wI4KfDS0hNQoj@cluster0.n8omm.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
+# Load environment variables from .env file
+load_dotenv()
+
+# MongoDB URI and credentials
+uri = os.getenv("MONGO_URI")
 client = MongoClient(uri)
 db = client['moodsync']
 users_collection = db['users']
@@ -15,8 +20,8 @@ users_collection = db['users']
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # Secret key for JWT
-SECRET_KEY = "bf7d6a7ca3bcc57b195ca47b9b9f2832c9194095bbb65891618b5e31b310aebb"
-ALGORITHM = "HS256"
+SECRET_KEY = os.getenv("SECRET_KEY")
+ALGORITHM = os.getenv("ALGORITHM")
 
 # Password hashing and verification functions
 def hash_password(password: str) -> str:
@@ -42,9 +47,11 @@ async def register_user(user: UserIn) -> Optional[dict]:
         "username": user.username,
         "email": user.email,
         "password": hashed_password,
+        "mobileNumber": user.mobileNumber,
+        "emergencyContact": user.emergencyContact,
     }
     users_collection.insert_one(user_data)
-    return {"username": user.username, "email": user.email}
+    return {"username": user.username, "email": user.email, "mobileNumber": user.mobileNumber, "emergencyContact": user.emergencyContact}
 
 # Business logic for user login
 async def login_user(request: LoginRequest) -> Optional[Token]:
