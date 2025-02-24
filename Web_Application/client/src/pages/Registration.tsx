@@ -1,5 +1,7 @@
 import React, { useState } from "react";
 import axios from "axios";
+import { useNavigate } from "react-router-dom";
+import Spinner from "../components/Spinner.tsx";
 
 const Registration = () => {
   const [username, setUsername] = useState("");
@@ -10,8 +12,11 @@ const Registration = () => {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [errors, setErrors] = useState({} as Record<string, string>);
   const [serverError, setServerError] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
-  // Extra validation logic from the second file
+  const navigate = useNavigate();
+
   const validateInput = (name: string, value: string): string => {
     switch (name) {
       case "username":
@@ -40,7 +45,6 @@ const Registration = () => {
     }
   };
 
-  // When an input loses focus, validate that field
   const handleBlur = (name: string) => {
     const value =
       {
@@ -57,7 +61,6 @@ const Registration = () => {
     }));
   };
 
-  // Validate all fields before submission
   const validateForm = () => {
     const newErrors: Record<string, string> = {
       username: validateInput("username", username),
@@ -71,12 +74,16 @@ const Registration = () => {
     return Object.values(newErrors).every((error) => !error);
   };
 
-  // Submission logic from the first file remains unchanged
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setServerError("");
+    setSuccessMessage("");
+    setIsLoading(true);
 
-    if (!validateForm()) return;
+    if (!validateForm()) {
+      setIsLoading(false);
+      return;
+    }
 
     try {
       const response = await axios.post("http://127.0.0.1:8000/register", {
@@ -87,21 +94,27 @@ const Registration = () => {
         emergencyContact,
       });
       console.log("Registration success:", response.data);
-      // Optionally redirect to login page, e.g., using navigate("/login");
+
+      setSuccessMessage(
+        "Registration successful! Redirecting to login page..."
+      );
+      setTimeout(() => {
+        navigate("/login");
+      }, 2000);
     } catch (error: any) {
       console.error(error);
       setServerError(error.response?.data?.detail || "Registration failed.");
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  // Helper to format field names to placeholders (e.g., "mobileNumber" → "Mobile Number")
   const formatPlaceholder = (field: string) => {
     return field
       .replace(/([A-Z])/g, " $1")
       .replace(/^./, (str) => str.toUpperCase());
   };
 
-  // Define the fields to render
   const fields = [
     { name: "username", type: "text" },
     { name: "email", type: "email" },
@@ -111,7 +124,6 @@ const Registration = () => {
     { name: "confirmPassword", type: "password" },
   ];
 
-  // Helpers to get and set the value for each field
   const getFieldValue = (field: string) => {
     switch (field) {
       case "username":
@@ -167,39 +179,51 @@ const Registration = () => {
           </div>
           <h1 className="title">MOODSYNC!</h1>
           {serverError && <p style={{ color: "red" }}>{serverError}</p>}
-          <form className="registration-form" onSubmit={handleSubmit}>
-            {fields.map((field) => (
-              <div className="input-container" key={field.name}>
+          {successMessage && (
+            <p style={{ color: "green", fontWeight: "bold" }}>
+              {successMessage}
+            </p>
+          )}
+
+          {isLoading ? (
+            <Spinner />
+          ) : (
+            <form className="registration-form" onSubmit={handleSubmit}>
+              {fields.map((field) => (
+                <div className="input-container" key={field.name}>
+                  <input
+                    type={field.type}
+                    id={field.name}
+                    className={`input ${
+                      errors[field.name] ? "input-error" : ""
+                    }`}
+                    placeholder={formatPlaceholder(field.name)}
+                    value={getFieldValue(field.name)}
+                    onChange={(e) => setFieldValue(field.name, e.target.value)}
+                    onBlur={() => handleBlur(field.name)}
+                    required
+                  />
+                  {errors[field.name] && (
+                    <p className="error-message">{errors[field.name]}</p>
+                  )}
+                </div>
+              ))}
+              <div className="terms-container">
                 <input
-                  type={field.type}
-                  id={field.name}
-                  className={`input ${errors[field.name] ? "input-error" : ""}`}
-                  placeholder={formatPlaceholder(field.name)}
-                  value={getFieldValue(field.name)}
-                  onChange={(e) => setFieldValue(field.name, e.target.value)}
-                  onBlur={() => handleBlur(field.name)}
+                  type="checkbox"
+                  id="terms"
+                  className="terms-checkbox"
                   required
                 />
-                {errors[field.name] && (
-                  <p className="error-message">{errors[field.name]}</p>
-                )}
+                <label htmlFor="terms" className="terms-label">
+                  I agree to the terms and conditions
+                </label>
               </div>
-            ))}
-            <div className="terms-container">
-              <input
-                type="checkbox"
-                id="terms"
-                className="terms-checkbox"
-                required
-              />
-              <label htmlFor="terms" className="terms-label">
-                I agree to the terms and conditions
-              </label>
-            </div>
-            <button type="submit" className="submit-button">
-              Register
-            </button>
-          </form>
+              <button type="submit" className="submit-button">
+                Register
+              </button>
+            </form>
+          )}
           <p className="footer-text">
             Already have an account?{" "}
             <a href="/login" className="link">
@@ -232,6 +256,7 @@ const Registration = () => {
           box-sizing: border-box;
           background-color: rgba(255, 255, 255, 0.8);
           border-radius: 8px;
+          position: relative;
         }
         .logo-box {
           margin-bottom: 24px;

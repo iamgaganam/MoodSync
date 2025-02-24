@@ -1,11 +1,15 @@
 import React, { useState } from "react";
 import axios from "axios";
+import { useNavigate } from "react-router-dom";
+import Spinner from "../components/Spinner.tsx";
 
 const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [serverError, setServerError] = useState("");
   const [errors, setErrors] = useState({ email: "", password: "" });
+  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
 
   const validateEmail = (email: string) => {
     if (!email) return "Email is required.";
@@ -48,6 +52,7 @@ const Login = () => {
       return;
     }
 
+    setLoading(true);
     try {
       const response = await axios.post("http://127.0.0.1:8000/login", {
         email,
@@ -56,71 +61,93 @@ const Login = () => {
       console.log("Login success:", response.data);
       const { access_token } = response.data;
       localStorage.setItem("access_token", access_token);
-
-      // Optionally navigate to a protected route
-      // navigate("/dashboard");
+      // On successful login, redirect to the home page
+      navigate("/");
     } catch (error: any) {
       console.error(error);
-      setServerError(error.response?.data?.detail || "Login failed.");
+      const errorMessage =
+        error.response?.data?.detail ||
+        "Login failed. Please check your credentials.";
+      setServerError(errorMessage);
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div className="login-container">
-      <div className="login-box">
-        <div className="logo-box">
-          <div className="logo-placeholder">
-            <div className="logo-line"></div>
+    <>
+      {loading ? (
+        <div className="spinner-container">
+          <Spinner />
+        </div>
+      ) : (
+        <div className="login-container">
+          <div className="login-box">
+            <div className="logo-box">
+              <div className="logo-placeholder">
+                <div className="logo-line"></div>
+              </div>
+            </div>
+            <h1 className="title">MOODSYNC!</h1>
+            {serverError && <p style={{ color: "red" }}>{serverError}</p>}
+
+            <form className="login-form" onSubmit={handleSubmit}>
+              <div className="input-container">
+                <input
+                  type="email"
+                  className={`input ${errors.email ? "input-error" : ""}`}
+                  placeholder="Email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  onBlur={() => handleBlur("email")}
+                  required
+                />
+                {errors.email && (
+                  <p className="error-message">{errors.email}</p>
+                )}
+              </div>
+              <div className="input-container">
+                <input
+                  type="password"
+                  className={`input ${errors.password ? "input-error" : ""}`}
+                  placeholder="Password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  onBlur={() => handleBlur("password")}
+                  required
+                />
+                {errors.password && (
+                  <p className="error-message">{errors.password}</p>
+                )}
+              </div>
+              <button type="submit" className="submit-button">
+                Login
+              </button>
+            </form>
+            <p className="footer-text">
+              You don't have an account?{" "}
+              <a href="/register" className="signup-link">
+                SignUp
+              </a>
+            </p>
           </div>
         </div>
-        <h1 className="title">MOODSYNC!</h1>
-        {serverError && <p style={{ color: "red" }}>{serverError}</p>}
-        <form className="login-form" onSubmit={handleSubmit}>
-          <div className="input-container">
-            <input
-              type="email"
-              className={`input ${errors.email ? "input-error" : ""}`}
-              placeholder="Email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              onBlur={() => handleBlur("email")}
-              required
-            />
-            {errors.email && <p className="error-message">{errors.email}</p>}
-          </div>
-          <div className="input-container">
-            <input
-              type="password"
-              className={`input ${errors.password ? "input-error" : ""}`}
-              placeholder="Password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              onBlur={() => handleBlur("password")}
-              required
-            />
-            {errors.password && (
-              <p className="error-message">{errors.password}</p>
-            )}
-          </div>
-          <button type="submit" className="submit-button">
-            Login
-          </button>
-        </form>
-        <p className="footer-text">
-          You don't have an account?{" "}
-          <a href="/register" className="signup-link">
-            SignUp
-          </a>
-        </p>
-      </div>
+      )}
 
       <style>
         {`
           html, body {
-            margin: 0;
             height: 100%;
+            margin: 0;
             font-family: Arial, sans-serif;
-            overflow: hidden;
+          }
+
+          .spinner-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            width: 100%;
           }
 
           .login-container {
@@ -139,18 +166,21 @@ const Login = () => {
             max-width: 400px;
             width: 100%;
             padding: 24px;
+            box-sizing: border-box;
             background-color: rgba(255, 255, 255, 0.8);
             border-radius: 8px;
+            position: relative;
           }
 
           .logo-box {
             margin-bottom: 24px;
+            display: flex;
+            justify-content: center;
           }
 
           .logo-placeholder {
             width: 80px;
             height: 80px;
-            margin: 0 auto;
             background-color: black;
             display: flex;
             justify-content: center;
@@ -173,7 +203,7 @@ const Login = () => {
           .login-form {
             display: flex;
             flex-direction: column;
-            gap: 24px;
+            gap: 16px;
           }
 
           .input-container {
@@ -233,7 +263,7 @@ const Login = () => {
           }
         `}
       </style>
-    </div>
+    </>
   );
 };
 
