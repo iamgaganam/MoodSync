@@ -51,7 +51,7 @@ const Chatbot: React.FC = () => {
       <div className="flex flex-col w-full max-w-3xl h-[90vh] bg-white text-black rounded-xl shadow-lg overflow-hidden">
         {/* Header */}
         <div className="bg-gray-100 py-4 px-6 border-b border-gray-300">
-          <h1 className="text-xl font-bold">Chatbot</h1>
+          <h1 className="text-xl font-bold">Chat</h1>
           <p className="text-sm text-gray-500">Your mental health assistant</p>
         </div>
 

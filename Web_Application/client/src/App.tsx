@@ -13,6 +13,10 @@ import Dashboard from "./pages/Dashboard";
 import Resources from "./pages/Resources";
 import Auth from "./pages/Auth";
 import Profile from "./pages/Profile";
+import DoctorAdminPanel from "./pages/Doctor/DoctorAdminPanel";
+import HealthInsightsDashboard from "./pages/Doctor/HealthInsightsDashboard";
+import ChatFeatures from "./pages/Chatfeature";
+import ProfileLayout from "./pages/prolay";
 
 const App: React.FC = () => {
   return (
@@ -29,6 +33,10 @@ const App: React.FC = () => {
           <Route path="/res" element={<Resources />} />
           <Route path="/auth" element={<Auth />} />
           <Route path="/profile" element={<Profile />} />
+          <Route path="/doc" element={<DoctorAdminPanel />} />
+          <Route path="/health" element={<HealthInsightsDashboard />} />
+          <Route path="/cc" element={<ChatFeatures />} />
+          <Route path="/pp" element={<ProfileLayout />} />
         </Routes>
       </div>
     </Router>
