@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, status
 from server.app.models.user import UserIn, UserOut, LoginRequest, Token
 from server.app.services.auth_service import register_user, login_user
 

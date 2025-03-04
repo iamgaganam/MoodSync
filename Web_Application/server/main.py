@@ -6,28 +6,24 @@ from server.app.api.sentiment import router as sentiment_router
 
 app = FastAPI()
 
-# CORS configuration (retaining the first file's settings)
+# CORS middleware setup for frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],  # or ["*"] for development
+    allow_origins=["http://localhost:5173"],  # Adjust frontend origin as needed
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Include routers from the first main.py
-app.include_router(auth_router, prefix="", tags=["auth"])
-app.include_router(protected_router, prefix="", tags=["protected"])
-
-# Include extra router from the second main.py
+# Include the different API routers
+app.include_router(auth_router, tags=["auth"])  # No prefix here, directly accessing /login and /register
+app.include_router(protected_router, tags=["protected"])  # No prefix, directly accessing /protected
 app.include_router(sentiment_router)
 
-# Root endpoint (unchanged from the first main.py)
 @app.get("/")
 def root():
-    return {"message": "Hello from FastAPI + MongoDB + JWT!"}
+    return {"message": "FastAPI + MongoDB + JWT Auth"}
 
-# Extra health check endpoint from the second main.py added at a different route
 @app.get("/health")
 async def health_check():
-    return {"message": "Hello, this is the mental health prediction API."}
+    return {"message": "API is up and running!"}
