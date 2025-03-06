@@ -1,12 +1,31 @@
-import React, { useState } from "react";
+import { useState, FC, FormEvent } from "react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import {
+  faFacebook,
+  faInstagram,
+  faXTwitter,
+  faWhatsapp,
+  faLinkedin,
+  faYoutube,
+} from "@fortawesome/free-brands-svg-icons";
+import { Brain } from "lucide-react";
 
-const Footer: React.FC = () => {
+const Footer: FC = () => {
+  // State to manage email input and feedback message
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState<string | null>(null);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  /**
+   * Handles the newsletter subscription form submission.
+   * Currently logs the email and displays a success message.
+   * Future integration with a backend API can be added here.
+   *
+   * @param e - Form submission event
+   */
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     try {
+      // Simulate the subscription process (e.g., API call)
       console.log("Subscribed email:", email);
       setMessage("Thank you for subscribing!");
       setEmail("");
@@ -19,19 +38,19 @@ const Footer: React.FC = () => {
     <footer className="bg-white dark:bg-gray-900">
       <div className="mx-auto w-full max-w-screen-xl p-4 py-6 lg:py-8">
         <div className="md:flex md:justify-between">
-          {/* Logo and Brand Name with Email Subscription */}
+          {/* Brand and Subscription Section */}
           <div className="mb-6 md:mb-0 md:w-1/3">
-            <a href="https://flowbite.com/" className="flex items-center">
-              <img
-                src="https://flowbite.com/docs/images/logo.svg"
-                className="h-8 me-3"
-                alt="FlowBite Logo"
-              />
-              <span className="self-center text-2xl font-semibold whitespace-nowrap dark:text-white">
+            <a href="" className="flex items-center">
+              <Brain className="h-8 w-8 text-blue-400" />
+              <span className="self-center text-2xl ml-2 font-semibold whitespace-nowrap dark:text-white">
                 MoodSync
               </span>
             </a>
-            {/* Email Subscription Form */}
+            {/* Tagline */}
+            <p className="text-gray-500 dark:text-gray-400 mt-2">
+              Your mental health companion
+            </p>
+            {/* Newsletter Subscription Form */}
             <div className="mt-8">
               <h2 className="mb-2 text-sm font-semibold text-gray-900 uppercase dark:text-white">
                 Subscribe to our newsletter
@@ -47,7 +66,7 @@ const Footer: React.FC = () => {
                 />
                 <button
                   type="submit"
-                  className="w-1/3 px-3 py-2 text-sm text-white bg-red-500 rounded hover:bg-orange-600 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-1/4 text-xs text-white bg-gradient-to-r from-blue-500 via-blue-600 to-blue-700 hover:bg-gradient-to-br focus:ring-4 focus:outline-none focus:ring-blue-300 dark:focus:ring-blue-800 shadow-lg shadow-blue-500/50 dark:shadow-lg dark:shadow-blue-800/80 font-medium rounded-lg px-2 py-2 text-center"
                 >
                   Subscribe
                 </button>
@@ -59,9 +78,10 @@ const Footer: React.FC = () => {
               )}
             </div>
           </div>
-          {/* Footer Links Organized by Topics */}
+
+          {/* Navigation Links Section */}
           <div className="grid grid-cols-2 gap-8 sm:gap-6 sm:grid-cols-5 md:grid-cols-5 lg:grid-cols-6">
-            {/* Resources */}
+            {/* Resources Links */}
             <div>
               <h2 className="mb-6 text-sm font-semibold text-gray-900 uppercase dark:text-white">
                 Resources
@@ -84,7 +104,8 @@ const Footer: React.FC = () => {
                 </li>
               </ul>
             </div>
-            {/* Follow Us */}
+
+            {/* Follow Us Links */}
             <div>
               <h2 className="mb-6 text-sm font-semibold text-gray-900 uppercase dark:text-white">
                 Follow Us
@@ -107,7 +128,8 @@ const Footer: React.FC = () => {
                 </li>
               </ul>
             </div>
-            {/* Support */}
+
+            {/* Support Links */}
             <div>
               <h2 className="mb-6 text-sm font-semibold text-gray-900 uppercase dark:text-white">
                 Support
@@ -130,7 +152,8 @@ const Footer: React.FC = () => {
                 </li>
               </ul>
             </div>
-            {/* About Us */}
+
+            {/* About Us Links */}
             <div>
               <h2 className="mb-6 text-sm font-semibold text-gray-900 uppercase dark:text-white">
                 About Us
@@ -153,7 +176,8 @@ const Footer: React.FC = () => {
                 </li>
               </ul>
             </div>
-            {/* Emergency Contact */}
+
+            {/* Emergency Links */}
             <div>
               <h2 className="mb-6 text-sm font-semibold text-gray-900 uppercase dark:text-white">
                 Emergency
@@ -176,7 +200,8 @@ const Footer: React.FC = () => {
                 </li>
               </ul>
             </div>
-            {/* Tools */}
+
+            {/* Tools Links */}
             <div>
               <h2 className="mb-6 text-sm font-semibold text-gray-900 uppercase dark:text-white">
                 Tools
@@ -201,45 +226,64 @@ const Footer: React.FC = () => {
             </div>
           </div>
         </div>
+
+        {/* Divider */}
         <hr className="my-6 border-gray-200 sm:mx-auto dark:border-gray-700 lg:my-8" />
+
+        {/* Footer Bottom: Copyright and Social Media */}
         <div className="sm:flex sm:items-center sm:justify-between">
           <span className="text-sm text-gray-500 sm:text-center dark:text-gray-400">
             © 2025 MoodSync by GM. All Rights Reserved.
           </span>
-          <div className="flex mt-4 sm:justify-center sm:mt-0">
+          <div className="flex mt-4 sm:justify-center sm:mt-0 space-x-4">
+            {/* Social Media Icons with Accessible Labels */}
             <a
               href="#"
-              className="text-gray-500 hover:text-gray-900 dark:hover:text-white"
+              className="text-gray-500 hover:text-blue-600 dark:hover:text-white"
+              aria-label="Facebook"
             >
-              <svg
-                className="w-4 h-4"
-                aria-hidden="true"
-                xmlns="http://www.w3.org/2000/svg"
-                fill="currentColor"
-                viewBox="0 0 8 19"
-              >
-                <path
-                  fillRule="evenodd"
-                  d="M6.135 3H8V0H6.135a4.147 4.147 0 0 0-4.142 4.142V6H0v3h2v9.938h3V9h2.021l.592-3H5V3.591A.6.6 0 0 1 5.592 3h.543Z"
-                  clipRule="evenodd"
-                />
-              </svg>
+              <FontAwesomeIcon icon={faFacebook} className="w-5 h-5" />
               <span className="sr-only">Facebook page</span>
             </a>
             <a
               href="#"
-              className="text-gray-500 hover:text-gray-900 dark:hover:text-white ms-5"
+              className="text-gray-500 hover:text-pink-600 dark:hover:text-white"
+              aria-label="Instagram"
             >
-              <svg
-                className="w-4 h-4"
-                aria-hidden="true"
-                xmlns="http://www.w3.org/2000/svg"
-                fill="currentColor"
-                viewBox="0 0 21 16"
-              >
-                <path d="M16.942 1.556a16.3 16.3 0 0 0-4.126-1.3 ..." />
-              </svg>
-              <span className="sr-only">Twitter</span>
+              <FontAwesomeIcon icon={faInstagram} className="w-5 h-6" />
+              <span className="sr-only">Instagram page</span>
+            </a>
+            <a
+              href="#"
+              className="text-gray-500 hover:text-black dark:hover:text-white"
+              aria-label="Twitter"
+            >
+              <FontAwesomeIcon icon={faXTwitter} className="w-6 h-6" />
+              <span className="sr-only">Twitter page</span>
+            </a>
+            <a
+              href="#"
+              className="text-gray-500 hover:text-green-600 dark:hover:text-white"
+              aria-label="WhatsApp"
+            >
+              <FontAwesomeIcon icon={faWhatsapp} className="w-6 h-6" />
+              <span className="sr-only">WhatsApp page</span>
+            </a>
+            <a
+              href="#"
+              className="text-gray-500 hover:text-blue-700 dark:hover:text-white"
+              aria-label="LinkedIn"
+            >
+              <FontAwesomeIcon icon={faLinkedin} className="w-6 h-6" />
+              <span className="sr-only">LinkedIn page</span>
+            </a>
+            <a
+              href="#"
+              className="text-gray-500 hover:text-red-600 dark:hover:text-white"
+              aria-label="YouTube"
+            >
+              <FontAwesomeIcon icon={faYoutube} className="w-6 h-6" />
+              <span className="sr-only">YouTube page</span>
             </a>
           </div>
         </div>

@@ -1,49 +1,260 @@
 import React, { useState, useEffect } from "react";
 import {
+  Smile,
+  Heart,
+  Activity,
+  Users,
+  Clock,
   Brain,
   MessageCircle,
-  Smile,
   AlertTriangle,
   BarChart2,
-  Heart,
   Shield,
-  Activity,
-  ArrowRight,
-  Users,
-  Calendar,
-  Clock,
 } from "lucide-react";
+import Navbar from "../components/Navbar";
+import Footer from "../components/Footer";
 
-const HomePage = () => {
+// FeatureCard Component
+interface FeatureCardProps {
+  icon: React.ReactNode;
+  title: string;
+  description: string;
+  iconColor: string;
+}
+
+const FeatureCard: React.FC<FeatureCardProps> = ({
+  icon,
+  title,
+  description,
+  iconColor,
+}) => {
+  const colorClasses = {
+    indigo: "text-indigo-600",
+    purple: "text-purple-600",
+    amber: "text-amber-600",
+    blue: "text-blue-600",
+    teal: "text-teal-600",
+    rose: "text-rose-600",
+  };
+
+  const colorClass =
+    colorClasses[iconColor as keyof typeof colorClasses] || "text-gray-600";
+
+  return (
+    <div className="max-w-sm p-6 bg-white border border-gray-200 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
+      <div className="flex items-center mb-5">
+        <div className={`w-10 h-10 ${colorClass} mr-4 flex-shrink-0`}>
+          {icon}
+        </div>
+        <h5 className="text-xl font-semibold tracking-tight text-gray-900">
+          {title}
+        </h5>
+      </div>
+      <p className="font-normal text-gray-600 leading-relaxed">{description}</p>
+    </div>
+  );
+};
+
+// Interface for testimonial data structure
+interface Testimonial {
+  id: number;
+  author: string;
+  joinDate: string;
+  reviewDate: string;
+  location: string;
+  rating: number;
+  title: string;
+  content: string;
+  helpfulCount: number;
+  profileImage: string;
+}
+
+// Interface for how it works step data structure
+interface WorkStep {
+  number: string;
+  title: string;
+  description: string;
+  position: string;
+}
+
+const HomePage: React.FC = () => {
   const [activeTestimonial, setActiveTestimonial] = useState(0);
-  const [isLoggedIn] = useState(false);
 
-  // Sample testimonials
-  const testimonials = [
+  // Feature data
+  const features: FeatureCardProps[] = [
     {
-      id: 1,
-      content:
-        "MoodSync has completely changed how I manage my mental health. The insights and early warnings helped me identify patterns I never noticed before.",
-      author: "Samantha K.",
-      role: "Student, Colombo",
+      icon: <Brain className="w-full h-full" />,
+      title: "Sentiment Analysis",
+      description:
+        "Our AI analyzes your texts and social media posts to help you understand your emotional patterns.",
+      iconColor: "indigo",
     },
     {
-      id: 2,
-      content:
-        "As someone who struggled to express my feelings, the sentiment analysis feature has been transformative. It helped me communicate better with my therapist.",
-      author: "Ravi T.",
-      role: "Software Engineer, Kandy",
+      icon: <MessageCircle className="w-full h-full" />,
+      title: "Anonymous Chat",
+      description:
+        "Connect with mental health professionals anonymously when you need support but aren't ready to share your identity.",
+      iconColor: "purple",
     },
     {
-      id: 3,
-      content:
-        "The anonymous chat feature made it possible for me to reach out for help when I was at my lowest. I'm grateful for the support I received.",
-      author: "Niroshi P.",
-      role: "Teacher, Galle",
+      icon: <AlertTriangle className="w-full h-full" />,
+      title: "Real-time Alerts",
+      description:
+        "Notify trusted contacts when our system detects concerning patterns in your mental health data.",
+      iconColor: "amber",
+    },
+    {
+      icon: <BarChart2 className="w-full h-full" />,
+      title: "Health Insights",
+      description:
+        "Visualize your mental health trends over time with intuitive graphs and meaningful metrics.",
+      iconColor: "blue",
+    },
+    {
+      icon: <Shield className="w-full h-full" />,
+      title: "Privacy Focused",
+      description:
+        "Your data is protected with state-of-the-art encryption and strict privacy controls.",
+      iconColor: "teal",
+    },
+    {
+      icon: <Heart className="w-full h-full" />,
+      title: "Tailored Support",
+      description:
+        "Receive personalized coping strategies and resources based on your specific needs.",
+      iconColor: "rose",
     },
   ];
 
-  // Auto rotate testimonials
+  // Testimonial data
+  const testimonials: Testimonial[] = [
+    {
+      id: 1,
+      author: "Dinesh Perera",
+      joinDate: "June 2021",
+      reviewDate: "February 12, 2023",
+      location: "Colombo",
+      rating: 5,
+      title: "A blessing during difficult times",
+      content:
+        "MoodSync has been a true companion during one of the most challenging periods of my life. After losing my job due to company restructuring, I fell into a pattern of negative thoughts and anxiety about the future. The daily check-ins and personalized coping strategies helped me recognize my thought patterns and develop healthier responses. The sleep meditation audio tracks were particularly effective—I went from restless nights to consistent, quality sleep within weeks. What impressed me most was how the app adapted to my progress, offering more advanced techniques as my emotional resilience improved. After 6 months of consistent use, I've not only found a new job but developed mental tools that will serve me for life.",
+      helpfulCount: 27,
+      profileImage:
+        "https://media.istockphoto.com/id/1199571022/photo/young-happy-and-successful-south-east-asian-islamic-business-woman-with-arms-crossed-in.jpg?s=612x612&w=0&k=20&c=dNH6PE2iifhJnJaGjtvkLz1Qj3d9-DHrGKKM2cgkjQ4=",
+    },
+    {
+      id: 2,
+      author: "Kumari Jayawardena",
+      joinDate: "March 2022",
+      reviewDate: "November 5, 2023",
+      location: "Kandy",
+      rating: 4,
+      title: "Helpful for university students",
+      content:
+        "As a final year medical student at University of Peradeniya, the pressure can be overwhelming. Between clinical rotations, exams, and thesis work, my anxiety levels were through the roof. MoodSync's stress tracking feature helped me identify exactly which situations triggered my panic attacks, and the cognitive behavioral exercises taught me how to manage them effectively. The quick 5-minute mindfulness sessions fit perfectly between study sessions, and I appreciate how the app sends gentle reminders during exam periods. The only reason I'm giving 4 stars instead of 5 is that I wish there were more content specifically for academic stress and perfectionism. That said, I've recommended MoodSync to my entire study group, and we've even created a support circle through the app's community feature.",
+      helpfulCount: 19,
+      profileImage: "/docs/images/people/profile-picture-1.jpg",
+    },
+    {
+      id: 3,
+      author: "Dr. Ranjith Fernando",
+      joinDate: "January 2021",
+      reviewDate: "August 18, 2023",
+      location: "Galle",
+      rating: 5,
+      title: "Perfect for clinical support",
+      content:
+        "As a psychiatrist practicing in southern Sri Lanka, I often recommend MoodSync to my patients as a complementary tool between therapy sessions. The app's mood tracking provides invaluable data that helps my patients visualize their emotional patterns, making our in-person sessions more productive. I'm particularly impressed with the evidence-based approaches incorporated throughout the platform—from the assessment methodology to the intervention techniques. The cultural sensitivity of the content is noteworthy; it respects local perspectives on mental health while introducing proven global practices. For patients with mild to moderate anxiety and depression, the guided journaling prompts have been especially beneficial. The secure data sharing feature allows patients to easily share their progress reports with me, creating a more integrated care experience. This technology is bridging important gaps in mental healthcare accessibility.",
+      helpfulCount: 34,
+      profileImage: "/docs/images/people/profile-picture-3.jpg",
+    },
+    {
+      id: 4,
+      author: "Amali Senaratne",
+      joinDate: "September 2022",
+      reviewDate: "January 23, 2024",
+      location: "Negombo",
+      rating: 5,
+      title: "Transformed my relationship with emotions",
+      content:
+        "After years of bottling up my emotions and practicing 'toxic positivity,' MoodSync taught me how to actually process my feelings in a healthy way. The emotional intelligence modules were eye-opening—I never realized how poorly I was identifying and expressing my emotions. The app's interactive exercises helped me build a vocabulary for my feelings and recognize physical sensations associated with different emotional states. The progress charts provided tangible evidence of my growth, showing fewer emotional swings and more consistent well-being over time. What I value most is the personalization; as someone working in the high-stress tourism industry, the app suggested specific techniques for managing customer interactions and workplace boundaries. The breathing techniques have become second nature now, and I use them daily. I've seen improvement not just in my mental health, but in my relationships and work performance too.",
+      helpfulCount: 42,
+      profileImage: "/docs/images/people/profile-picture-2.jpg",
+    },
+  ];
+
+  // How It Works data
+  const howItWorksSteps: WorkStep[] = [
+    {
+      number: "1",
+      title: "Complete Your Assessment",
+      description:
+        "Take our scientifically-backed mental wellness assessment that analyzes your emotional patterns, stress triggers, and resilience factors.",
+      position: "left",
+    },
+    {
+      number: "2",
+      title: "Receive Personalized Insights",
+      description:
+        "Our AI analyzes your responses to create a detailed emotional profile, identifying strengths, challenges, and providing actionable recommendations.",
+      position: "right",
+    },
+    {
+      number: "3",
+      title: "Follow Your Custom Plan",
+      description:
+        "Access tailored exercises, guided meditations, and cognitive behavioral techniques designed specifically for your unique mental health needs.",
+      position: "left",
+    },
+    {
+      number: "4",
+      title: "Track Your Progress",
+      description:
+        "Monitor improvements through regular check-ins and visualized progress reports, with AI-powered adjustments to your plan as you grow.",
+      position: "right",
+    },
+  ];
+
+  // Utility function to render rating stars
+  const renderStars = (rating: number) => {
+    return Array.from({ length: rating }, (_, i) => (
+      <svg
+        key={i}
+        className="w-4 h-4 text-yellow-400"
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 20 20"
+        fill="currentColor"
+      >
+        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.286 3.95a1 1 0 00.95.69h4.163c.969 0 1.371 1.24.588 1.81l-3.37 2.448a1 1 0 00-.364 1.118l1.287 3.95c.3.921-.755 1.688-1.54 1.118l-3.37-2.448a1 1 0 00-1.176 0l-3.37 2.448c-.784.57-1.838-.197-1.54-1.118l1.287-3.95a1 1 0 00-.364-1.118L2.07 9.377c-.783-.57-.38-1.81.588-1.81h4.163a1 1 0 00.95-.69l1.286-3.95z" />
+      </svg>
+    ));
+  };
+
+  // Statistics data
+  const statistics = [
+    {
+      icon: <Users className="h-10 w-10" />,
+      number: "10,000+",
+      label: "Active Users",
+    },
+    {
+      icon: <Smile className="h-10 w-10" />,
+      number: "85%",
+      label: "User Satisfaction",
+    },
+    {
+      icon: <Clock className="h-10 w-10" />,
+      number: "24/7",
+      label: "Support Available",
+    },
+    {
+      icon: <Activity className="h-10 w-10" />,
+      number: "15+",
+      label: "Partner Hospitals",
+    },
+  ];
+
+  // Auto-rotate testimonials
   useEffect(() => {
     const interval = setInterval(() => {
       setActiveTestimonial((prev) => (prev + 1) % testimonials.length);
@@ -52,330 +263,235 @@ const HomePage = () => {
   }, [testimonials.length]);
 
   return (
-    <div className="min-h-screen flex flex-col">
-      {/* Navigation */}
-      <nav className="bg-white shadow-sm py-4">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <Brain className="h-8 w-8 text-blue-600" />
-              </div>
-              <div className="ml-2 text-xl font-bold text-gray-800">
-                MoodSync
-              </div>
-            </div>
-            <div className="hidden md:block">
-              <div className="flex items-center space-x-6">
-                <a
-                  href="#features"
-                  className="text-gray-600 hover:text-blue-600 transition-colors"
-                >
-                  Features
-                </a>
-                <a
-                  href="#how-it-works"
-                  className="text-gray-600 hover:text-blue-600 transition-colors"
-                >
-                  How It Works
-                </a>
-                <a
-                  href="#testimonials"
-                  className="text-gray-600 hover:text-blue-600 transition-colors"
-                >
-                  Testimonials
-                </a>
-                <a
-                  href="#resources"
-                  className="text-gray-600 hover:text-blue-600 transition-colors"
-                >
-                  Resources
-                </a>
-                <a
-                  href="#contact"
-                  className="text-gray-600 hover:text-blue-600 transition-colors"
-                >
-                  Contact
-                </a>
-              </div>
-            </div>
-            <div className="flex items-center space-x-4">
-              {isLoggedIn ? (
-                <a
-                  href="/dashboard"
-                  className="bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-700"
-                >
-                  Dashboard
-                </a>
-              ) : (
-                <>
-                  <a
-                    href="/login"
-                    className="text-gray-600 hover:text-blue-600 transition-colors text-sm font-medium"
-                  >
-                    Login
-                  </a>
-                  <a
-                    href="/register"
-                    className="bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-700"
-                  >
-                    Sign Up
-                  </a>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-      </nav>
+    <div className="min-h-screen flex flex-col bg-gray-50">
+      <Navbar />
 
       {/* Hero Section */}
-      <section className="relative bg-gradient-to-r from-blue-500 to-indigo-600 py-16 md:py-24">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
-            <div className="text-white">
-              <h1 className="text-4xl md:text-5xl font-bold leading-tight">
-                Track, Understand, and Improve Your Mental Wellbeing
-              </h1>
-              <p className="mt-4 text-lg md:text-xl text-blue-100">
-                MoodSync uses advanced sentiment analysis to help you monitor
-                your mental health patterns and connect with support when you
-                need it most.
-              </p>
-              <div className="mt-8 flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4">
-                <a
-                  href="/register"
-                  className="bg-white text-blue-600 px-6 py-3 rounded-md font-medium text-center hover:bg-blue-50 transition-colors"
-                >
-                  Get Started Free
-                </a>
-                <a
-                  href="#how-it-works"
-                  className="border border-white text-white px-6 py-3 rounded-md font-medium text-center hover:bg-white hover:text-blue-600 transition-colors"
-                >
-                  Learn More
-                </a>
-              </div>
+      <div className="relative min-h-[85vh] bg-gradient-to-br bg-blue-600 flex items-center py-8 sm:py-12 md:py-0">
+        <div className="container mx-auto px-4 sm:px-6 grid md:grid-cols-2 gap-8 md:gap-12 items-center">
+          {/* Left Content */}
+          <div className="text-white space-y-4 sm:space-y-5 order-1 w-full">
+            <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold leading-tight">
+              Your Mental Health, Intelligently Understood
+            </h1>
+            <p className="text-base sm:text-lg text-white/80 max-w-md leading-relaxed">
+              MoodSync leverages advanced AI and machine learning to provide
+              personalized mental health insights, support, and guidance
+              tailored to your unique emotional journey.
+            </p>
+            <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-4 pt-2">
+              <button className="bg-white text-blue-600 px-5 sm:px-6 py-3 rounded-lg font-semibold hover:bg-gray-100 transition w-full sm:w-auto text-sm sm:text-base">
+                Start Your Journey
+              </button>
+              <button className="border border-white/50 text-white px-5 sm:px-6 py-3 rounded-lg font-semibold hover:bg-white/10 transition w-full sm:w-auto text-sm sm:text-base">
+                Learn More
+              </button>
             </div>
-            <div className="hidden md:block">
-              <div className="relative">
-                <div className="bg-white p-6 rounded-lg shadow-xl">
-                  <div className="flex items-center mb-4">
-                    <Smile className="h-10 w-10 text-blue-500" />
-                    <div className="ml-4">
-                      <h3 className="text-xl font-medium text-gray-800">
-                        Today's Mood
-                      </h3>
-                      <p className="text-gray-500">
-                        Let MoodSync track your emotional wellbeing
-                      </p>
-                    </div>
-                  </div>
-                  <div className="space-y-4">
-                    <div className="bg-gray-100 p-4 rounded-md">
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="text-gray-600 font-medium">
-                          Happiness
-                        </span>
-                        <span className="text-blue-600 font-medium">75%</span>
-                      </div>
-                      <div className="w-full bg-gray-300 rounded-full h-2">
-                        <div
-                          className="bg-blue-600 h-2 rounded-full"
-                          style={{ width: "75%" }}
-                        ></div>
-                      </div>
-                    </div>
-                    <div className="bg-gray-100 p-4 rounded-md">
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="text-gray-600 font-medium">
-                          Anxiety
-                        </span>
-                        <span className="text-blue-600 font-medium">30%</span>
-                      </div>
-                      <div className="w-full bg-gray-300 rounded-full h-2">
-                        <div
-                          className="bg-blue-600 h-2 rounded-full"
-                          style={{ width: "30%" }}
-                        ></div>
-                      </div>
-                    </div>
-                    <div className="bg-gray-100 p-4 rounded-md">
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="text-gray-600 font-medium">
-                          Energy
-                        </span>
-                        <span className="text-blue-600 font-medium">65%</span>
-                      </div>
-                      <div className="w-full bg-gray-300 rounded-full h-2">
-                        <div
-                          className="bg-blue-600 h-2 rounded-full"
-                          style={{ width: "65%" }}
-                        ></div>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="mt-6">
-                    <a
-                      href="/track-mood"
-                      className="w-full bg-blue-600 text-white py-2 px-4 rounded-md text-center font-medium block hover:bg-blue-700 transition-colors"
-                    >
-                      Check In Now
-                    </a>
-                  </div>
+          </div>
+
+          {/* Right Content - Mood Widget */}
+          <div className="bg-white rounded-2xl p-4 sm:p-6 md:p-8 shadow-2xl border border-gray-200 space-y-4 sm:space-y-5 md:space-y-6 order-2 w-full">
+            <div>
+              <div className="flex items-center mb-2">
+                <Smile className="text-indigo-600 mr-2 sm:mr-3 w-5 h-5 sm:w-6 sm:h-6" />
+                <h2 className="text-gray-700 font-semibold text-lg sm:text-xl">
+                  Today's Mood
+                </h2>
+              </div>
+              <p className="text-gray-500 text-xs sm:text-sm">
+                A comprehensive overview of your current emotional and mental
+                state
+              </p>
+            </div>
+
+            <div className="space-y-3 sm:space-y-4 md:space-y-6">
+              {/* Mood metrics */}
+              <div>
+                <div className="flex justify-between text-gray-700 text-xs sm:text-sm mb-1 sm:mb-2">
+                  <span>Emotional Balance</span>
+                  <span>78%</span>
                 </div>
-                <div className="absolute top-4 right-4 h-24 w-24 bg-blue-100 rounded-full -z-10"></div>
-                <div className="absolute -bottom-4 -left-4 h-16 w-16 bg-indigo-100 rounded-full -z-10"></div>
+                <div className="bg-blue-100 rounded-full h-2 sm:h-3">
+                  <div
+                    className="bg-blue-500 rounded-full h-2 sm:h-3"
+                    style={{ width: "78%" }}
+                  ></div>
+                </div>
+              </div>
+
+              <div>
+                <div className="flex justify-between text-gray-700 text-xs sm:text-sm mb-1 sm:mb-2">
+                  <span>Stress Level</span>
+                  <span>35%</span>
+                </div>
+                <div className="bg-red-100 rounded-full h-2 sm:h-3">
+                  <div
+                    className="bg-red-500 rounded-full h-2 sm:h-3"
+                    style={{ width: "35%" }}
+                  ></div>
+                </div>
+              </div>
+
+              <div>
+                <div className="flex justify-between text-gray-700 text-xs sm:text-sm mb-1 sm:mb-2">
+                  <span>Energy</span>
+                  <span>65%</span>
+                </div>
+                <div className="bg-green-100 rounded-full h-2 sm:h-3">
+                  <div
+                    className="bg-green-500 rounded-full h-2 sm:h-3"
+                    style={{ width: "65%" }}
+                  ></div>
+                </div>
+              </div>
+
+              <div className="pt-2 sm:pt-3 md:pt-4">
+                <button
+                  type="button"
+                  className="w-full text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-xs sm:text-sm px-5 py-2.5 focus:outline-none"
+                >
+                  Check It Now
+                </button>
               </div>
             </div>
           </div>
         </div>
-        <div className="absolute bottom-0 left-0 right-0">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 320">
-            <path
-              fill="#ffffff"
-              fillOpacity="1"
-              d="M0,288L48,272C96,256,192,224,288,197.3C384,171,480,149,576,165.3C672,181,768,235,864,250.7C960,267,1056,245,1152,224C1248,203,1344,181,1392,170.7L1440,160L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z"
-            ></path>
-          </svg>
-        </div>
-      </section>
+      </div>
 
-      {/* Key Features */}
-      <section id="features" className="py-16 bg-white">
+      {/* Features Section */}
+      <section id="features" className="py-20 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold text-gray-900">Key Features</h2>
+          <div className="text-center mb-16">
+            <h2 className="text-3xl font-bold text-gray-900 mb-4">
+              Key Features
+            </h2>
+            <div className="h-1 w-24 bg-blue-600 mx-auto mb-6 rounded-full"></div>
             <p className="mt-4 text-xl text-gray-600 max-w-3xl mx-auto">
               MoodSync combines advanced technology with compassionate care to
               help you manage your mental wellbeing.
             </p>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            <FeatureCard
-              icon={<Brain className="h-10 w-10 text-blue-600" />}
-              title="Sentiment Analysis"
-              description="Our AI analyzes your texts and social media posts to help you understand your emotional patterns."
-            />
-            <FeatureCard
-              icon={<MessageCircle className="h-10 w-10 text-blue-600" />}
-              title="Anonymous Chat"
-              description="Connect with mental health professionals anonymously when you need support but aren't ready to share your identity."
-            />
-            <FeatureCard
-              icon={<AlertTriangle className="h-10 w-10 text-blue-600" />}
-              title="Real-time Alerts"
-              description="Notify trusted contacts when our system detects concerning patterns in your mental health data."
-            />
-            <FeatureCard
-              icon={<BarChart2 className="h-10 w-10 text-blue-600" />}
-              title="Health Insights"
-              description="Visualize your mental health trends over time with intuitive graphs and meaningful metrics."
-            />
-            <FeatureCard
-              icon={<Shield className="h-10 w-10 text-blue-600" />}
-              title="Privacy Focused"
-              description="Your data is protected with state-of-the-art encryption and strict privacy controls."
-            />
-            <FeatureCard
-              icon={<Heart className="h-10 w-10 text-blue-600" />}
-              title="Tailored Support"
-              description="Receive personalized coping strategies and resources based on your specific needs."
-            />
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+            {features.map((feature, index) => (
+              <FeatureCard
+                key={index}
+                icon={feature.icon}
+                title={feature.title}
+                description={feature.description}
+                iconColor={feature.iconColor}
+              />
+            ))}
           </div>
         </div>
       </section>
 
-      {/* How It Works */}
-      <section id="how-it-works" className="py-16 bg-gray-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      {/* How It Works Section */}
+      <section className="py-12 bg-gray-50">
+        <div className="max-w-5xl mx-auto px-4">
+          {/* Section header */}
           <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold text-gray-900">
+            <h2 className="text-3xl font-bold text-gray-900 mb-2">
               How MoodSync Works
             </h2>
-            <p className="mt-4 text-xl text-gray-600 max-w-3xl mx-auto">
+            <div className="h-1 w-24 bg-blue-600 mx-auto mb-4 rounded-full"></div>
+            <p className="text-xl text-gray-600 max-w-3xl mx-auto mt-4">
               MoodSync uses a combination of AI, machine learning, and human
               expertise to help you understand and improve your mental health.
             </p>
           </div>
-          <div className="relative">
-            <div className="hidden md:block absolute left-1/2 transform -translate-x-1/2 h-full w-1 bg-blue-200 z-0"></div>
-            <div className="space-y-12">
-              <StepCard
-                number="1"
-                title="Connect Your Accounts"
-                description="Securely link your social media accounts or start journaling directly in the app to provide data for analysis."
-                isLeft={true}
-              />
-              <StepCard
-                number="2"
-                title="AI Analyzes Your Data"
-                description="Our machine learning algorithms process your text to identify emotional patterns, stress indicators, and potential concerns."
-                isLeft={false}
-              />
-              <StepCard
-                number="3"
-                title="Receive Personalized Insights"
-                description="View your mental health trends, receive tailored recommendations, and track your progress over time."
-                isLeft={true}
-              />
-              <StepCard
-                number="4"
-                title="Connect with Support"
-                description="When needed, connect anonymously with mental health professionals or allow the system to alert your trusted contacts."
-                isLeft={false}
-              />
+
+          {/* Timeline with steps */}
+          <div className="relative pb-8">
+            {/* Vertical line */}
+            <div className="absolute left-1/2 transform -translate-x-1/2 h-full w-px bg-blue-200"></div>
+
+            {/* Steps */}
+            <div className="relative space-y-20">
+              {howItWorksSteps.map((step, index) => (
+                <div key={index} className="relative">
+                  {/* Circle with number */}
+                  <div className="absolute left-1/2 transform -translate-x-1/2 z-10">
+                    <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center">
+                      <span className="text-white text-lg font-bold">
+                        {step.number}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Content */}
+                  <div
+                    className={`flex ${
+                      step.position === "right"
+                        ? "justify-end"
+                        : "justify-start"
+                    }`}
+                  >
+                    <div
+                      className={`w-1/2 ${
+                        step.position === "right" ? "pl-8" : "pr-8"
+                      } ${
+                        step.position === "right" ? "text-right" : "text-left"
+                      }`}
+                    >
+                      <h3 className="text-xl font-bold text-gray-900 mb-2">
+                        {step.title}
+                      </h3>
+                      <p className="text-gray-600 text-lg">
+                        {step.description}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         </div>
       </section>
 
-      {/* Statistics */}
+      {/* Statistics Section */}
       <section className="py-16 bg-blue-600 text-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto px-4">
           <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold">Making a Difference</h2>
+            <h2 className="text-3xl font-bold">
+              Making a Meaningful Difference
+            </h2>
             <p className="mt-4 text-xl text-blue-100 max-w-3xl mx-auto">
-              MoodSync is helping thousands of users in Sri Lanka and beyond
-              improve their mental wellbeing.
+              MoodSync is transforming mental health support across Sri Lanka
+              through innovative technology and compassionate care.
             </p>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-            <StatCard
-              number="10,000+"
-              label="Active Users"
-              icon={<Users className="h-8 w-8" />}
-            />
-            <StatCard
-              number="85%"
-              label="User Satisfaction"
-              icon={<Smile className="h-8 w-8" />}
-            />
-            <StatCard
-              number="24/7"
-              label="Support Available"
-              icon={<Clock className="h-8 w-8" />}
-            />
-            <StatCard
-              number="15+"
-              label="Partner Hospitals"
-              icon={<Activity className="h-8 w-8" />}
-            />
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+            {statistics.map((stat) => (
+              <div
+                key={stat.label}
+                className="bg-blue-500 p-6 rounded-xl text-center hover:bg-blue-400 transition-colors"
+              >
+                <div className="flex justify-center items-center mb-4">
+                  {stat.icon}
+                  <span className="text-3xl font-bold ml-3">{stat.number}</span>
+                </div>
+                <p className="text-blue-100">{stat.label}</p>
+              </div>
+            ))}
           </div>
         </div>
       </section>
 
-      {/* Testimonials */}
+      {/* Testimonials Section */}
       <section id="testimonials" className="py-16 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold text-gray-900">
+            <h2 className="text-3xl font-bold text-gray-900 relative inline-block">
               What Our Users Say
             </h2>
-            <p className="mt-4 text-xl text-gray-600 max-w-3xl mx-auto">
+            <div className="h-1 w-24 bg-blue-600 mx-auto mb-6 rounded-full"></div>
+            <p className="mt-8 text-xl text-gray-600 max-w-3xl mx-auto">
               Real stories from people whose lives have been impacted by
               MoodSync.
             </p>
           </div>
+
           <div className="relative">
             <div className="overflow-hidden">
               <div
@@ -386,131 +502,221 @@ const HomePage = () => {
               >
                 {testimonials.map((testimonial) => (
                   <div key={testimonial.id} className="min-w-full px-4">
-                    <div className="bg-gray-50 p-8 rounded-lg shadow-sm border border-gray-100">
+                    <article className="bg-gray-50 p-8 rounded-lg shadow-sm border border-gray-100 max-w-4xl mx-auto">
                       <div className="flex items-center mb-4">
-                        <div className="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center">
-                          <span className="text-blue-600 font-bold text-xl">
-                            {testimonial.author.charAt(0)}
-                          </span>
+                        <div className="relative">
+                          <img
+                            className="w-10 h-10 p-1 rounded-full ring-2 ring-gray-300"
+                            src={testimonial.profileImage}
+                            alt={`${testimonial.author}'s profile`}
+                          />
+                          <span className="bottom-0 left-7 absolute w-3.5 h-3.5 bg-green-400 border-2 border-white rounded-full"></span>
                         </div>
-                        <div className="ml-4">
-                          <h4 className="text-lg font-medium text-gray-900">
+
+                        <div className="font-medium text-gray-900 ml-3">
+                          <p>
                             {testimonial.author}
-                          </h4>
-                          <p className="text-gray-600">{testimonial.role}</p>
+                            <time
+                              dateTime={testimonial.joinDate}
+                              className="block text-sm text-gray-500"
+                            >
+                              Joined on {testimonial.joinDate}
+                            </time>
+                          </p>
                         </div>
                       </div>
-                      <p className="text-gray-700 italic">
-                        {testimonial.content}
-                      </p>
-                    </div>
+
+                      <div className="flex items-center mb-1 space-x-1 rtl:space-x-reverse">
+                        {renderStars(testimonial.rating)}
+                        <h3 className="ms-2 text-sm font-semibold text-gray-900">
+                          {testimonial.title}
+                        </h3>
+                      </div>
+
+                      {testimonial.content
+                        .split("\n\n")
+                        .map((paragraph, index) => (
+                          <p key={index} className="mb-2 text-gray-500">
+                            {paragraph}
+                          </p>
+                        ))}
+
+                      <a
+                        href="#"
+                        className="block mb-5 text-sm font-medium text-blue-600 hover:underline"
+                      >
+                        Read more
+                      </a>
+
+                      <aside>
+                        <p className="mt-1 text-xs text-gray-500">
+                          {testimonial.helpfulCount} people found this helpful
+                        </p>
+                        <div className="flex items-center mt-3">
+                          <a
+                            href="#"
+                            className="px-2 py-1.5 text-xs font-medium text-gray-900 focus:outline-none bg-white rounded-lg border border-gray-200 hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-4 focus:ring-gray-100"
+                          >
+                            Helpful
+                          </a>
+                          <a
+                            href="#"
+                            className="ps-4 text-sm font-medium text-blue-600 hover:underline border-gray-200 ms-4 border-s"
+                          >
+                            Report abuse
+                          </a>
+                        </div>
+                      </aside>
+                    </article>
                   </div>
                 ))}
               </div>
             </div>
-            <div className="flex justify-center mt-8">
-              {testimonials.map((_, index) => (
-                <button
-                  key={index}
-                  onClick={() => setActiveTestimonial(index)}
-                  className={`h-3 w-3 rounded-full mx-2 ${
-                    index === activeTestimonial ? "bg-blue-600" : "bg-gray-300"
-                  }`}
-                  aria-label={`View testimonial ${index + 1}`}
-                />
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
 
-      {/* Resources Section */}
-      <section id="resources" className="py-16 bg-gray-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold text-gray-900">
-              Mental Health Resources
-            </h2>
-            <p className="mt-4 text-xl text-gray-600 max-w-3xl mx-auto">
-              Access helpful resources and professional support services in Sri
-              Lanka.
-            </p>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <ResourceCard
-              title="Crisis Helplines"
-              items={[
-                "Sri Lanka Sumithrayo: 011-2696666",
-                "National Mental Health Helpline: 1926",
-                "CCCline: 1333 (24/7 Support)",
-              ]}
-            />
-            <ResourceCard
-              title="Hospital Services"
-              items={[
-                "National Institute of Mental Health",
-                "Lady Ridgeway Hospital - Child Guidance Centre",
-                "Teaching Hospital Colombo - Psychiatry Unit",
-              ]}
-            />
-            <ResourceCard
-              title="Self-Help Resources"
-              items={[
-                "Guided Meditation Sessions",
-                "Stress Management Techniques",
-                "CBT Workbooks and Exercises",
-              ]}
-            />
-          </div>
-          <div className="mt-12 text-center">
-            <a
-              href="/resources"
-              className="inline-flex items-center text-blue-600 font-medium hover:text-blue-800"
+            {/* Navigation buttons */}
+            <button
+              type="button"
+              className="absolute top-0 start-0 z-30 flex items-center justify-center h-full px-4 cursor-pointer group focus:outline-none"
+              onClick={() =>
+                setActiveTestimonial((prev) => Math.max(0, prev - 1))
+              }
+              disabled={activeTestimonial === 0}
+              aria-label="Previous testimonial"
             >
-              View All Resources
-              <ArrowRight className="ml-2 h-4 w-4" />
-            </a>
+              <span
+                className={`inline-flex items-center justify-center w-10 h-10 rounded-full bg-white/30 group-hover:bg-white/50 group-focus:ring-4 group-focus:ring-white group-focus:outline-none ${
+                  activeTestimonial === 0 ? "opacity-50 cursor-not-allowed" : ""
+                }`}
+              >
+                <svg
+                  className="w-4 h-4 text-gray-800 rtl:rotate-180"
+                  aria-hidden="true"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 6 10"
+                >
+                  <path
+                    stroke="currentColor"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M5 1 1 5l4 4"
+                  />
+                </svg>
+                <span className="sr-only">Previous</span>
+              </span>
+            </button>
+
+            <button
+              type="button"
+              className="absolute top-0 end-0 z-30 flex items-center justify-center h-full px-4 cursor-pointer group focus:outline-none"
+              onClick={() =>
+                setActiveTestimonial((prev) =>
+                  Math.min(testimonials.length - 1, prev + 1)
+                )
+              }
+              disabled={activeTestimonial === testimonials.length - 1}
+              aria-label="Next testimonial"
+            >
+              <span
+                className={`inline-flex items-center justify-center w-10 h-10 rounded-full bg-white/30 group-hover:bg-white/50 group-focus:ring-4 group-focus:ring-white group-focus:outline-none ${
+                  activeTestimonial === testimonials.length - 1
+                    ? "opacity-50 cursor-not-allowed"
+                    : ""
+                }`}
+              >
+                <svg
+                  className="w-4 h-4 text-gray-800 rtl:rotate-180"
+                  aria-hidden="true"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 6 10"
+                >
+                  <path
+                    stroke="currentColor"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="m1 9 4-4-4-4"
+                  />
+                </svg>
+                <span className="sr-only">Next</span>
+              </span>
+            </button>
+          </div>
+
+          {/* Navigation dots */}
+          <div className="flex justify-center mt-8">
+            {testimonials.map((_, index) => (
+              <button
+                key={index}
+                onClick={() => setActiveTestimonial(index)}
+                className={`h-3 w-3 rounded-full mx-2 ${
+                  index === activeTestimonial ? "bg-blue-600" : "bg-gray-300"
+                }`}
+                aria-label={`View testimonial ${index + 1}`}
+              />
+            ))}
           </div>
         </div>
       </section>
 
-      {/* CTA Section */}
-      <section className="py-16 bg-blue-600">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="bg-white rounded-lg shadow-xl overflow-hidden">
+      {/* Call to Action Section */}
+      <section className="py-16 bg-gradient-to-r from-blue-600 to-indigo-700">
+        <div className="max-w-7xl mx-auto px-4">
+          <div className="bg-white rounded-xl shadow-2xl overflow-hidden">
             <div className="grid grid-cols-1 md:grid-cols-2">
+              {/* Left Column - CTA Text and Buttons */}
               <div className="p-8 md:p-12">
                 <h2 className="text-3xl font-bold text-gray-900">
-                  Ready to start your mental wellness journey?
+                  Start Your Mental Wellness Journey Today
                 </h2>
                 <p className="mt-4 text-lg text-gray-600">
-                  Join thousands of Sri Lankans who are taking control of their
-                  mental health with MoodSync.
+                  Join thousands of individuals taking proactive steps towards
+                  better mental health with MoodSync.
                 </p>
-                <div className="mt-8">
+                <div className="mt-8 flex space-x-4">
                   <a
                     href="/register"
-                    className="inline-block bg-blue-600 text-white py-3 px-6 rounded-md font-medium hover:bg-blue-700 transition-colors"
+                    className="bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
                   >
                     Get Started Free
                   </a>
-                  <p className="mt-3 text-sm text-gray-500">
-                    No credit card required. Free plan includes all basic
-                    features.
-                  </p>
+                  <a
+                    href="/demo"
+                    className="border border-blue-600 text-blue-600 px-6 py-3 rounded-lg font-semibold hover:bg-blue-50 transition-colors"
+                  >
+                    Watch Demo
+                  </a>
                 </div>
+                <p className="mt-4 text-sm text-gray-500">
+                  No credit card required. Free plan includes core features.
+                </p>
               </div>
-              <div className="hidden md:block relative">
-                <div className="absolute inset-0 bg-gradient-to-r from-blue-400 to-indigo-500"></div>
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="text-white text-center px-8">
-                    <Calendar className="h-16 w-16 mx-auto opacity-75" />
-                    <h3 className="mt-4 text-2xl font-bold">
-                      Track your progress
+
+              {/* Right Column - Visual Element */}
+              <div className="hidden md:block relative bg-gradient-to-r from-blue-500 to-indigo-600">
+                <div className="absolute inset-0 opacity-10">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 200 200"
+                    className="w-full h-full"
+                  >
+                    <path
+                      fill="#FFFFFF"
+                      d="M100,20 Q150,80 100,140 Q50,80 100,20 Z"
+                      opacity="0.3"
+                    />
+                  </svg>
+                </div>
+                <div className="relative z-10 flex items-center justify-center h-full">
+                  <div className="text-center text-white p-8">
+                    <Heart className="h-16 w-16 mx-auto mb-4 text-white" />
+                    <h3 className="text-2xl font-bold mb-3">
+                      Your Mental Health Matters
                     </h3>
-                    <p className="mt-2 text-blue-100">
-                      Monitor your mental health trends daily, weekly, and
-                      monthly.
+                    <p className="text-blue-100">
+                      Personalized support, always available.
                     </p>
                   </div>
                 </div>
@@ -520,245 +726,8 @@ const HomePage = () => {
         </div>
       </section>
 
-      {/* Footer */}
-      <footer id="contact" className="bg-gray-900 text-white py-12">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-            <div>
-              <div className="flex items-center">
-                <Brain className="h-8 w-8 text-blue-400" />
-                <span className="ml-2 text-xl font-bold">MoodSync</span>
-              </div>
-              <p className="mt-4 text-gray-400">
-                Empowering Sri Lankans to monitor, understand, and improve their
-                mental health through technology.
-              </p>
-              <div className="mt-6 flex space-x-4">
-                <a href="#" className="text-gray-400 hover:text-white">
-                  <span className="sr-only">Facebook</span>
-                  <svg
-                    className="h-6 w-6"
-                    fill="currentColor"
-                    viewBox="0 0 24 24"
-                    aria-hidden="true"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M22 12c0-5.523-4.477-10-10-10S2 6.477 2 12c0 4.991 3.657 9.128 8.438 9.878v-6.987h-2.54V12h2.54V9.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562V12h2.773l-.443 2.89h-2.33v6.988C18.343 21.128 22 16.991 22 12z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                </a>
-                <a href="#" className="text-gray-400 hover:text-white">
-                  <span className="sr-only">Twitter</span>
-                  <svg
-                    className="h-6 w-6"
-                    fill="currentColor"
-                    viewBox="0 0 24 24"
-                    aria-hidden="true"
-                  >
-                    <path d="M8.29 20.251c7.547 0 11.675-6.253 11.675-11.675 0-.178 0-.355-.012-.53A8.348 8.348 0 0022 5.92a8.19 8.19 0 01-2.357.646 4.118 4.118 0 001.804-2.27 8.224 8.224 0 01-2.605.996 4.107 4.107 0 00-6.993 3.743 11.65 11.65 0 01-8.457-4.287 4.106 4.106 0 001.27 5.477A4.072 4.072 0 012.8 9.713v.052a4.105 4.105 0 003.292 4.022 4.095 4.095 0 01-1.853.07 4.108 4.108 0 003.834 2.85A8.233 8.233 0 012 18.407a11.616 11.616 0 006.29 1.84" />
-                  </svg>
-                </a>
-                <a href="#" className="text-gray-400 hover:text-white">
-                  <span className="sr-only">Instagram</span>
-                  <svg
-                    className="h-6 w-6"
-                    fill="currentColor"
-                    viewBox="0 0 24 24"
-                    aria-hidden="true"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M12.315 2c2.43 0 2.784.013 3.808.06 1.064.049 1.791.218 2.427.465a4.902 4.902 0 011.772 1.153 4.902 4.902 0 011.153 1.772c.247.636.416 1.363.465 2.427.048 1.067.06 1.407.06 4.123v.08c0 2.643-.012 2.987-.06 4.043-.049 1.064-.218 1.791-.465 2.427a4.902 4.902 0 01-1.153 1.772 4.902 4.902 0 01-1.772 1.153c-.636.247-1.363.416-2.427.465-1.067.048-1.407.06-4.123.06h-.08c-2.643 0-2.987-.012-4.043-.06-1.064-.049-1.791-.218-2.427-.465a4.902 4.902 0 01-1.772-1.153 4.902 4.902 0 01-1.153-1.772c-.247-.636-.416-1.363-.465-2.427-.047-1.024-.06-1.379-.06-3.808v-.63c0-2.43.013-2.784.06-3.808.049-1.064.218-1.791.465-2.427a4.902 4.902 0 011.153-1.772A4.902 4.902 0 015.45 2.525c.636-.247 1.363-.416 2.427-.465C8.901 2.013 9.256 2 11.685 2h.63zm-.081 1.802h-.468c-2.456 0-2.784.011-3.807.058-.975.045-1.504.207-1.857.344-.467.182-.8.398-1.15.748-.35.35-.566.683-.748 1.15-.137.353-.3.882-.344 1.857-.047 1.023-.058 1.351-.058 3.807v.468c0 2.456.011 2.784.058 3.807.045.975.207 1.504.344 1.857.182.466.399.8.748 1.15.35.35.683.566 1.15.748.353.137.882.3 1.857.344 1.054.048 1.37.058 4.041.058h.08c2.597 0 2.917-.01 3.96-.058.976-.045 1.505-.207 1.858-.344.466-.182.8-.398 1.15-.748.35-.35.566-.683.748-1.15.137-.353.3-.882.344-1.857.048-1.055.058-1.37.058-4.041v-.08c0-2.597-.01-2.917-.058-3.96-.045-.976-.207-1.505-.344-1.858a3.097 3.097 0 00-.748-1.15 3.098 3.098 0 00-1.15-.748c-.353-.137-.882-.3-1.857-.344-1.023-.047-1.351-.058-3.807-.058zM12 6.865a5.135 5.135 0 110 10.27 5.135 5.135 0 010-10.27zm0 1.802a3.333 3.333 0 100 6.666 3.333 3.333 0 000-6.666zm5.338-3.205a1.2 1.2 0 110 2.4 1.2 1.2 0 010-2.4z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                </a>
-              </div>
-            </div>
-
-            <div>
-              <h3 className="text-lg font-medium">Product</h3>
-              <ul className="mt-4 space-y-2">
-                <li>
-                  <a
-                    href="#features"
-                    className="text-gray-400 hover:text-white"
-                  >
-                    Features
-                  </a>
-                </li>
-                <li>
-                  <a
-                    href="#how-it-works"
-                    className="text-gray-400 hover:text-white"
-                  >
-                    How It Works
-                  </a>
-                </li>
-                <li>
-                  <a href="/pricing" className="text-gray-400 hover:text-white">
-                    Pricing
-                  </a>
-                </li>
-                <li>
-                  <a href="/faq" className="text-gray-400 hover:text-white">
-                    FAQ
-                  </a>
-                </li>
-              </ul>
-            </div>
-
-            <div>
-              <h3 className="text-lg font-medium">Resources</h3>
-              <ul className="mt-4 space-y-2">
-                <li>
-                  <a
-                    href="/articles"
-                    className="text-gray-400 hover:text-white"
-                  >
-                    Mental Health Articles
-                  </a>
-                </li>
-                <li>
-                  <a
-                    href="/providers"
-                    className="text-gray-400 hover:text-white"
-                  >
-                    Find a Therapist
-                  </a>
-                </li>
-                <li>
-                  <a
-                    href="/emergency"
-                    className="text-gray-400 hover:text-white"
-                  >
-                    Emergency Resources
-                  </a>
-                </li>
-                <li>
-                  <a href="/support" className="text-gray-400 hover:text-white">
-                    Support Groups
-                  </a>
-                </li>
-              </ul>
-            </div>
-
-            <div>
-              <h3 className="text-lg font-medium">Contact</h3>
-              <ul className="mt-4 space-y-2">
-                <li className="flex items-start">
-                  <svg
-                    className="h-6 w-6 text-gray-400 mr-2"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
-                    />
-                  </svg>
-                  <div>
-                    <p className="text-gray-400">info@moodsync.com</p>
-                    <p className="text-gray-400">+94 11 234 5678</p>
-                  </div>
-                </li>
-              </ul>
-            </div>
-          </div>
-          <div className="mt-8 text-center text-gray-500">
-            © {new Date().getFullYear()} MoodSync. All rights reserved.
-          </div>
-        </div>
-      </footer>
-    </div>
-  );
-};
-
-// ----- Subcomponents -----
-
-interface FeatureCardProps {
-  icon: React.ReactNode;
-  title: string;
-  description: string;
-}
-
-const FeatureCard = ({ icon, title, description }: FeatureCardProps) => {
-  return (
-    <div className="bg-white p-6 rounded-lg shadow hover:shadow-lg transition">
-      <div>{icon}</div>
-      <h3 className="mt-4 text-xl font-bold">{title}</h3>
-      <p className="mt-2 text-gray-600">{description}</p>
-    </div>
-  );
-};
-
-const StepCard = ({
-  number,
-  title,
-  description,
-  isLeft,
-}: {
-  number: string;
-  title: string;
-  description: string;
-  isLeft: boolean;
-}) => {
-  return (
-    <div
-      className={`flex ${
-        isLeft ? "flex-row" : "flex-row-reverse"
-      } items-center`}
-    >
-      <div className="w-10 h-10 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold">
-        {number}
-      </div>
-      <div className={`mx-4 ${isLeft ? "text-left" : "text-right"}`}>
-        <h4 className="text-lg font-bold">{title}</h4>
-        <p className="mt-1 text-gray-600">{description}</p>
-      </div>
-    </div>
-  );
-};
-
-interface StatCardProps {
-  number: string;
-  label: string;
-  icon: React.ReactNode;
-}
-
-const StatCard: React.FC<StatCardProps> = ({ number, label, icon }) => {
-  return (
-    <div className="bg-blue-500 p-6 rounded-lg text-center">
-      <div className="flex items-center justify-center">
-        {icon}
-        <h3 className="text-2xl font-bold ml-2">{number}</h3>
-      </div>
-      <p className="mt-2">{label}</p>
-    </div>
-  );
-};
-
-interface ResourceCardProps {
-  title: string;
-  items: string[];
-}
-
-const ResourceCard: React.FC<ResourceCardProps> = ({ title, items }) => {
-  return (
-    <div className="bg-white p-6 rounded-lg shadow hover:shadow-lg transition">
-      <h3 className="text-xl font-bold">{title}</h3>
-      <ul className="mt-4 space-y-2">
-        {items.map((item, index) => (
-          <li key={index} className="text-gray-600">
-            {item}
-          </li>
-        ))}
-      </ul>
+      {/* Footer Component */}
+      <Footer />
     </div>
   );
 };
