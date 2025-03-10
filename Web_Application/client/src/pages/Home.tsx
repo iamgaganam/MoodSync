@@ -144,16 +144,17 @@ const HomePage: React.FC = () => {
     },
     {
       id: 2,
-      author: "Kumari Jayawardena",
-      joinDate: "March 2022",
+      author: "Rosella Raymond",
+      joinDate: "March 2025",
       reviewDate: "November 5, 2023",
-      location: "Kandy",
+      location: "Central Colombo",
       rating: 4,
       title: "Helpful for university students",
       content:
-        "As a final year medical student at University of Peradeniya, the pressure can be overwhelming. Between clinical rotations, exams, and thesis work, my anxiety levels were through the roof. MoodSync's stress tracking feature helped me identify exactly which situations triggered my panic attacks, and the cognitive behavioral exercises taught me how to manage them effectively. The quick 5-minute mindfulness sessions fit perfectly between study sessions, and I appreciate how the app sends gentle reminders during exam periods. The only reason I'm giving 4 stars instead of 5 is that I wish there were more content specifically for academic stress and perfectionism. That said, I've recommended MoodSync to my entire study group, and we've even created a support circle through the app's community feature.",
-      helpfulCount: 19,
-      profileImage: "/docs/images/people/profile-picture-1.jpg",
+        "As a final year student at University of Nothumbria, the pressure can be overwhelming. Between work rotations, exams, and thesis work, my anxiety levels were through the roof. MoodSync's stress tracking feature helped me identify exactly which situations triggered my panic attacks, and the cognitive behavioral exercises taught me how to manage them effectively. The quick 5-minute mindfulness sessions fit perfectly between study sessions, and I appreciate how the app sends gentle reminders during exam periods. The only reason I'm giving 4 stars instead of 5 is that I wish there were more content specifically for academic stress and perfectionism. That said, I've recommended MoodSync to my entire study group, and we've even created a support circle through the app's community feature.",
+      helpfulCount: 4,
+      profileImage:
+        "https://cdn-images.dzcdn.net/images/cover/47743030deffbd6efd88ed5b77fbad7e/1900x1900-000000-80-0-0.jpg",
     },
     {
       id: 3,

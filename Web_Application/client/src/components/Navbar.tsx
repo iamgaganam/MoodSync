@@ -4,10 +4,10 @@ import React, { useState, useRef, useEffect } from "react";
 // Navigation links for the main menu
 const NAV_LINKS = [
   { label: "Home", href: "#" },
-  { label: "About", href: "#" },
-  { label: "Services", href: "#" },
-  { label: "Pricing", href: "#" },
-  { label: "Contact", href: "#" },
+  { label: "Mood Tracker", href: "#" },
+  { label: "Mental Health Resources", href: "#" },
+  { label: "Therapists Directory", href: "#" },
+  { label: "Support Groups", href: "#" },
 ];
 
 // Dropdown items for the user menu
@@ -93,7 +93,7 @@ const Navbar: React.FC = () => {
       <div className="flex justify-between items-center mx-auto p-4 w-full relative">
         {/* Logo */}
         <a href="" className="flex items-center space-x-1">
-          <Brain className="h-8 w-8 text-blue-400" />
+          <Brain className="h-8 w-8 text-blue-600" />
           <span className="self-center text-2xl font-semibold whitespace-nowrap dark:text-white">
             MoodSync
           </span>
@@ -162,8 +162,8 @@ const Navbar: React.FC = () => {
                 <span className="sr-only">Open user menu</span>
                 <div className="relative">
                   <img
-                    className="w-10 h-10 p-1 rounded-full ring-2 ring-gray-300 dark:ring-gray-500"
-                    src="/docs/images/people/profile-picture-5.jpg"
+                    className="w-10 h-10 rounded-full ring-2 ring-gray-300 dark:ring-gray-500"
+                    src="https://i1.sndcdn.com/artworks-lEAsN83kbdQScsx7-DmxtKw-t500x500.jpg"
                     alt="Bordered avatar"
                   />
 
@@ -237,7 +237,7 @@ const Navbar: React.FC = () => {
                     >
                       <img
                         className="w-10 h-10 rounded-full"
-                        src="/docs/images/people/profile-picture-5.jpg"
+                        src="https://i1.sndcdn.com/artworks-lEAsN83kbdQScsx7-DmxtKw-t500x500.jpg"
                         alt="user photo"
                       />
                       <div className="text-left">

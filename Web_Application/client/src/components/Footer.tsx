@@ -41,7 +41,7 @@ const Footer: FC = () => {
           {/* Brand and Subscription Section */}
           <div className="mb-6 md:mb-0 md:w-1/3">
             <a href="" className="flex items-center">
-              <Brain className="h-8 w-8 text-blue-400" />
+              <Brain className="h-8 w-8 text-blue-600" />
               <span className="self-center text-2xl ml-2 font-semibold whitespace-nowrap dark:text-white">
                 MoodSync
               </span>
