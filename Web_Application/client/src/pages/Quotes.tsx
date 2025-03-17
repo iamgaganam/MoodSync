@@ -1,5 +1,3 @@
-import React from "react";
-
 const Quotes = () => {
   const quotes = [
     "You are stronger than you think.",
