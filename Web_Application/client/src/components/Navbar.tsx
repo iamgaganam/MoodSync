@@ -3,7 +3,7 @@ import React, { useState, useRef, useEffect } from "react";
 
 // Navigation links for the main menu
 const NAV_LINKS = [
-  { label: "Home", href: "#" },
+  { label: "Home", href: "/" },
   { label: "Mood Tracker", href: "#" },
   { label: "Mental Health Resources", href: "#" },
   { label: "Therapists Directory", href: "#" },
@@ -89,7 +89,7 @@ const Navbar: React.FC = () => {
   );
 
   return (
-    <nav className="bg-white border-gray-200 dark:bg-gray-900 w-full fixed top-0 left-0 z-50 shadow-md h-16">
+    <nav className="bg-white dark:bg-gray-900 w-full fixed top-0 left-0 z-50 h-16">
       <div className="flex justify-between items-center mx-auto p-4 w-full relative">
         {/* Logo */}
         <a href="" className="flex items-center space-x-1">
