@@ -14,7 +14,8 @@ import UserProfilePages from "./pages/Profile";
 import EmergencyAlerts from "./features/Emergency";
 import CommunitySupportPages from "./features/Comsup";
 import NotFound from "./components/Error";
-import AdminDashboard from "../src/features/Dashboard";
+import AdminDashboard from "./pages/AdminDashboard";
+import DoctorDashboard from "./pages/DoctorDashboard";
 
 const App: React.FC = () => {
   return (
@@ -25,7 +26,6 @@ const App: React.FC = () => {
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Registration />} />
           <Route path="/" element={<Home />} />
-          <Route path="/dash" element={<AdminDashboard />} />
           <Route path="/profile" element={<UserProfilePages />} />
           <Route path="/cc" element={<ChatFeatures />} />
 
@@ -34,6 +34,9 @@ const App: React.FC = () => {
           <Route path="/trac" element={<WellnessTracker />} />
           <Route path="/emer" element={<EmergencyAlerts />} />
           <Route path="/com" element={<CommunitySupportPages />} />
+
+          <Route path="/doh" element={<DoctorDashboard />} />
+          <Route path="/ahh" element={<AdminDashboard />} />
         </Routes>
       </div>
     </Router>

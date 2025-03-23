@@ -7,18 +7,18 @@ from server.app.api.chat_socket import router as chat_socket_router  # New WebSo
 
 app = FastAPI()
 
-# CORS middleware setup for frontend
+# CORS middleware setup. *Dog said not to switch*
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],  # Adjust frontend origin as needed
+    allow_origins=["http://localhost:5173"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 # Include the different API routers
-app.include_router(auth_router, tags=["auth"])  # Direct endpoints e.g., /login and /register
-app.include_router(protected_router, tags=["protected"])  # Direct endpoints e.g., /protected
+app.include_router(auth_router, tags=["auth"])  # Login with JWT, MAKE CHANGES before Submitting
+app.include_router(protected_router, tags=["protected"])  # OAuth 2.0
 app.include_router(sentiment_router)
 app.include_router(chat_socket_router, tags=["chat-socket"])  # New chat WebSocket endpoints
 
