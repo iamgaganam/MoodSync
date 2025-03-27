@@ -6,7 +6,7 @@ import {
   formatDate,
   getSentimentColor,
   getRiskBadge,
-} from "../../utils/helpers";
+} from "../../utils/Helpers";
 
 interface PatientsViewProps {
   filteredPatients: Patient[];

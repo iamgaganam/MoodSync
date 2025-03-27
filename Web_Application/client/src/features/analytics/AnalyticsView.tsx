@@ -1,7 +1,7 @@
 // client/src/features/analytics/AnalyticsView.tsx
 import React from "react";
 import { XMarkIcon as XIcon, ChartBarIcon } from "@heroicons/react/24/outline";
-import { formatDate, getSentimentColor } from "../../utils/helpers";
+import { formatDate, getSentimentColor } from "../../utils/Helpers";
 import { Patient, MoodData } from "../../data/mockData";
 import { format } from "date-fns";
 

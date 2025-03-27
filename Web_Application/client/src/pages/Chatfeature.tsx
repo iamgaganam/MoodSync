@@ -1,5 +1,4 @@
-// ChatFeatures.tsx
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import {
   FaUser,
@@ -7,7 +6,16 @@ import {
   FaRobot,
   FaBrain,
   FaHeadset,
-} from "react-icons/fa6";
+  FaPaperPlane,
+  FaPaperclip,
+  FaSmile,
+  FaInfoCircle,
+  FaTimes,
+  FaMinus,
+} from "react-icons/fa";
+import { motion, AnimatePresence } from "framer-motion";
+import Navbar from "../components/Navbar";
+import Footer from "../components/Footer";
 
 // Chat Option Card Component
 interface ChatOptionProps {
@@ -26,11 +34,13 @@ const ChatOption: React.FC<ChatOptionProps> = ({
   active,
 }) => {
   return (
-    <div
+    <motion.div
+      whileHover={{ y: -5 }}
+      whileTap={{ scale: 0.98 }}
       className={`p-6 rounded-xl transition-all duration-300 cursor-pointer ${
         active
-          ? "bg-blue-600 text-white shadow-lg transform -translate-y-1"
-          : "bg-white hover:bg-blue-50 text-gray-800 border border-gray-200 hover:border-blue-300"
+          ? "bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-lg"
+          : "bg-white hover:bg-blue-50 text-gray-800 border border-gray-200 hover:border-blue-300 hover:shadow-md"
       }`}
       onClick={onClick}
     >
@@ -43,7 +53,7 @@ const ChatOption: React.FC<ChatOptionProps> = ({
       <p className={`text-sm ${active ? "text-blue-100" : "text-gray-600"}`}>
         {description}
       </p>
-    </div>
+    </motion.div>
   );
 };
 
@@ -53,6 +63,7 @@ export interface ChatMessage {
   sender: "user" | "system";
   content: string;
   timestamp: Date;
+  isTyping?: boolean;
 }
 
 // Base Chat Interface for generic (simulated) chats
@@ -74,6 +85,15 @@ const BaseChatInterface: React.FC<ChatInterfaceProps> = ({
     },
   ]);
   const [inputText, setInputText] = useState("");
+  const [isTyping, setIsTyping] = useState(false);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTop =
+        messagesContainerRef.current.scrollHeight;
+    }
+  }, [messages]);
 
   const handleSendMessage = () => {
     if (!inputText.trim()) return;
@@ -87,8 +107,12 @@ const BaseChatInterface: React.FC<ChatInterfaceProps> = ({
     setMessages([...messages, newMessage]);
     setInputText("");
 
-    // Simulate a system response after 1 second
+    // Show typing indicator
+    setIsTyping(true);
+
+    // Simulate a system response after 1-2 seconds
     setTimeout(() => {
+      setIsTyping(false);
       const responseMessage: ChatMessage = {
         id: (Date.now() + 1).toString(),
         sender: "system",
@@ -96,67 +120,61 @@ const BaseChatInterface: React.FC<ChatInterfaceProps> = ({
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, responseMessage]);
-    }, 1000);
+    }, Math.random() * 1000 + 1000);
   };
 
   return (
-    <div className="flex flex-col h-[600px] bg-gray-50 rounded-xl shadow-md border border-gray-200 overflow-hidden">
+    <div className="flex flex-col h-[600px] bg-gray-50 rounded-xl shadow-lg border border-gray-200 overflow-hidden">
       {/* Chat Header */}
-      <div className="bg-blue-600 text-white p-4 flex items-center">
-        <h2 className="text-xl font-semibold">{headerTitle}</h2>
+      <div className="bg-gradient-to-r from-blue-700 to-blue-500 text-white p-4 flex items-center">
+        <div className="flex items-center">
+          {headerTitle === "Talk to a Doctor" && <FaUser className="mr-2" />}
+          {headerTitle === "Anonymous Chat" && (
+            <FaUserSecret className="mr-2" />
+          )}
+          {headerTitle === "Chatbot" && <FaRobot className="mr-2" />}
+          {headerTitle === "Virtual Therapist" && <FaBrain className="mr-2" />}
+          {headerTitle === "Live Support" && <FaHeadset className="mr-2" />}
+          <h2 className="text-xl font-semibold">{headerTitle}</h2>
+        </div>
         <div className="ml-auto flex space-x-2">
-          <button className="p-2 hover:bg-blue-700 rounded-full">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="h-5 w-5"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M18 12H6"
-              />
-            </svg>
+          <button
+            className="p-2 hover:bg-blue-600 rounded-full transition-colors"
+            title="Minimize"
+          >
+            <FaMinus className="h-4 w-4" />
           </button>
-          <button className="p-2 hover:bg-blue-700 rounded-full">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="h-5 w-5"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M6 18L18 6M6 6l12 12"
-              />
-            </svg>
+          <button
+            className="p-2 hover:bg-blue-600 rounded-full transition-colors"
+            title="Close"
+          >
+            <FaTimes className="h-4 w-4" />
           </button>
         </div>
       </div>
 
       {/* Messages Area */}
-      <div className="flex-1 p-4 overflow-y-auto">
+      <div
+        ref={messagesContainerRef}
+        className="flex-1 p-4 overflow-y-auto bg-gradient-to-b from-blue-50 to-white"
+      >
         {messages.map((message) => (
-          <div
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
             key={message.id}
             className={`mb-4 flex ${
               message.sender === "user" ? "justify-end" : "justify-start"
             }`}
           >
             <div
-              className={`max-w-[80%] p-3 rounded-lg ${
+              className={`max-w-[80%] p-3 rounded-lg shadow-sm ${
                 message.sender === "user"
-                  ? "bg-blue-600 text-white rounded-tr-none"
+                  ? "bg-gradient-to-r from-blue-600 to-blue-500 text-white rounded-tr-none"
                   : "bg-white text-gray-800 border border-gray-200 rounded-tl-none"
               }`}
             >
-              <p>{message.content}</p>
+              <p className="whitespace-pre-wrap">{message.content}</p>
               <p
                 className={`text-xs mt-1 ${
                   message.sender === "user" ? "text-blue-200" : "text-gray-500"
@@ -168,28 +186,47 @@ const BaseChatInterface: React.FC<ChatInterfaceProps> = ({
                 })}
               </p>
             </div>
-          </div>
+          </motion.div>
         ))}
+
+        {/* Typing indicator */}
+        <AnimatePresence>
+          {isTyping && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              className="flex justify-start mb-4"
+            >
+              <div className="bg-white text-gray-800 border border-gray-200 rounded-lg rounded-tl-none p-3 max-w-[80%]">
+                <div className="flex space-x-1">
+                  <div
+                    className="w-2 h-2 rounded-full bg-gray-400 animate-bounce"
+                    style={{ animationDelay: "0ms" }}
+                  ></div>
+                  <div
+                    className="w-2 h-2 rounded-full bg-gray-400 animate-bounce"
+                    style={{ animationDelay: "150ms" }}
+                  ></div>
+                  <div
+                    className="w-2 h-2 rounded-full bg-gray-400 animate-bounce"
+                    style={{ animationDelay: "300ms" }}
+                  ></div>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* Input Area */}
       <div className="p-4 border-t border-gray-200 bg-white">
         <div className="flex items-center">
-          <button className="p-2 rounded-full text-gray-500 hover:text-blue-600 hover:bg-blue-50">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="h-6 w-6"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"
-              />
-            </svg>
+          <button className="p-2 rounded-full text-gray-500 hover:text-blue-600 hover:bg-blue-50 transition-colors">
+            <FaPaperclip className="h-5 w-5" />
+          </button>
+          <button className="p-2 rounded-full text-gray-500 hover:text-blue-600 hover:bg-blue-50 transition-colors">
+            <FaSmile className="h-5 w-5" />
           </button>
           <input
             type="text"
@@ -202,23 +239,10 @@ const BaseChatInterface: React.FC<ChatInterfaceProps> = ({
             }}
           />
           <button
-            className="p-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+            className="p-3 bg-gradient-to-r from-blue-600 to-blue-500 text-white rounded-full hover:from-blue-700 hover:to-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
             onClick={handleSendMessage}
           >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="h-6 w-6"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
-              />
-            </svg>
+            <FaPaperPlane className="h-4 w-4" />
           </button>
         </div>
       </div>
@@ -238,6 +262,15 @@ const ChatbotChat: React.FC = () => {
     },
   ]);
   const [inputText, setInputText] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTop =
+        messagesContainerRef.current.scrollHeight;
+    }
+  }, [messages]);
 
   const handleSendMessage = async () => {
     if (!inputText.trim()) return;
@@ -251,11 +284,13 @@ const ChatbotChat: React.FC = () => {
     setMessages((prev) => [...prev, userMessage]);
     const textToSend = inputText;
     setInputText("");
+    setIsLoading(true);
 
     try {
       const response = await axios.post("http://127.0.0.1:8000/predict/", {
         statement: textToSend,
       });
+      setIsLoading(false);
       const sentiment = response.data.sentiment;
       const confidence = response.data.confidence;
 
@@ -276,6 +311,7 @@ const ChatbotChat: React.FC = () => {
       setMessages((prev) => [...prev, systemMessage1, systemMessage2]);
     } catch (error) {
       console.error("Error with API:", error);
+      setIsLoading(false);
       const errorMessage: ChatMessage = {
         id: (Date.now() + 3).toString(),
         sender: "system",
@@ -287,63 +323,51 @@ const ChatbotChat: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col h-[600px] bg-gray-50 rounded-xl shadow-md border border-gray-200 overflow-hidden">
+    <div className="flex flex-col h-[600px] bg-gray-50 rounded-xl shadow-lg border border-gray-200 overflow-hidden">
       {/* Chat Header */}
-      <div className="bg-blue-600 text-white p-4 flex items-center">
-        <h2 className="text-xl font-semibold">Chatbot</h2>
+      <div className="bg-gradient-to-r from-blue-700 to-blue-500 text-white p-4 flex items-center">
+        <div className="flex items-center">
+          <FaRobot className="mr-2" />
+          <h2 className="text-xl font-semibold">Chatbot</h2>
+        </div>
         <div className="ml-auto flex space-x-2">
-          <button className="p-2 hover:bg-blue-700 rounded-full">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="h-5 w-5"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M18 12H6"
-              />
-            </svg>
+          <button
+            className="p-2 hover:bg-blue-600 rounded-full transition-colors"
+            title="Minimize"
+          >
+            <FaMinus className="h-4 w-4" />
           </button>
-          <button className="p-2 hover:bg-blue-700 rounded-full">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="h-5 w-5"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M6 18L18 6M6 6l12 12"
-              />
-            </svg>
+          <button
+            className="p-2 hover:bg-blue-600 rounded-full transition-colors"
+            title="Close"
+          >
+            <FaTimes className="h-4 w-4" />
           </button>
         </div>
       </div>
 
       {/* Messages Area */}
-      <div className="flex-1 p-4 overflow-y-auto">
+      <div
+        ref={messagesContainerRef}
+        className="flex-1 p-4 overflow-y-auto bg-gradient-to-b from-blue-50 to-white"
+      >
         {messages.map((message) => (
-          <div
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
             key={message.id}
             className={`mb-4 flex ${
               message.sender === "user" ? "justify-end" : "justify-start"
             }`}
           >
             <div
-              className={`max-w-[80%] p-3 rounded-lg ${
+              className={`max-w-[80%] p-3 rounded-lg shadow-sm ${
                 message.sender === "user"
-                  ? "bg-blue-600 text-white rounded-tr-none"
+                  ? "bg-gradient-to-r from-blue-600 to-blue-500 text-white rounded-tr-none"
                   : "bg-white text-gray-800 border border-gray-200 rounded-tl-none"
               }`}
             >
-              <p>{message.content}</p>
+              <p className="whitespace-pre-wrap">{message.content}</p>
               <p className="text-xs mt-1 text-gray-500">
                 {message.timestamp.toLocaleTimeString([], {
                   hour: "2-digit",
@@ -351,28 +375,47 @@ const ChatbotChat: React.FC = () => {
                 })}
               </p>
             </div>
-          </div>
+          </motion.div>
         ))}
+
+        {/* Loading indicator */}
+        <AnimatePresence>
+          {isLoading && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              className="flex justify-start mb-4"
+            >
+              <div className="bg-white text-gray-800 border border-gray-200 rounded-lg rounded-tl-none p-3 max-w-[80%]">
+                <div className="flex space-x-1">
+                  <div
+                    className="w-2 h-2 rounded-full bg-gray-400 animate-bounce"
+                    style={{ animationDelay: "0ms" }}
+                  ></div>
+                  <div
+                    className="w-2 h-2 rounded-full bg-gray-400 animate-bounce"
+                    style={{ animationDelay: "150ms" }}
+                  ></div>
+                  <div
+                    className="w-2 h-2 rounded-full bg-gray-400 animate-bounce"
+                    style={{ animationDelay: "300ms" }}
+                  ></div>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* Input Area */}
       <div className="p-4 border-t border-gray-200 bg-white">
         <div className="flex items-center">
-          <button className="p-2 rounded-full text-gray-500 hover:text-blue-600 hover:bg-blue-50">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="h-6 w-6"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"
-              />
-            </svg>
+          <button className="p-2 rounded-full text-gray-500 hover:text-blue-600 hover:bg-blue-50 transition-colors">
+            <FaPaperclip className="h-5 w-5" />
+          </button>
+          <button className="p-2 rounded-full text-gray-500 hover:text-blue-600 hover:bg-blue-50 transition-colors">
+            <FaSmile className="h-5 w-5" />
           </button>
           <input
             type="text"
@@ -385,23 +428,11 @@ const ChatbotChat: React.FC = () => {
             }}
           />
           <button
-            className="p-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+            className="p-3 bg-gradient-to-r from-blue-600 to-blue-500 text-white rounded-full hover:from-blue-700 hover:to-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
             onClick={handleSendMessage}
+            disabled={isLoading}
           >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="h-6 w-6"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
-              />
-            </svg>
+            <FaPaperPlane className="h-4 w-4" />
           </button>
         </div>
       </div>
@@ -422,18 +453,28 @@ const AnonymousChat: React.FC = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputText, setInputText] = useState("");
   const [ws, setWs] = useState<WebSocket | null>(null);
+  const [isConnected, setIsConnected] = useState(false);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // Using a static room ID for demonstration.
+    if (messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTop =
+        messagesContainerRef.current.scrollHeight;
+    }
+  }, [messages]);
+
+  useEffect(() => {
     const roomId = "anonymous_chat_room_1";
     const websocket = new WebSocket(`ws://127.0.0.1:8000/ws/${roomId}`);
 
     websocket.onopen = () => {
       console.log("Connected to WebSocket");
+      setIsConnected(true);
       const welcomeMessage: ChatMessage = {
         id: Date.now().toString(),
         sender: "system",
-        content: "Connected to the live anonymous chat.",
+        content:
+          "Connected to the live anonymous chat. Your identity is completely protected.",
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, welcomeMessage]);
@@ -451,6 +492,14 @@ const AnonymousChat: React.FC = () => {
 
     websocket.onclose = () => {
       console.log("WebSocket disconnected");
+      setIsConnected(false);
+      const disconnectMessage: ChatMessage = {
+        id: Date.now().toString(),
+        sender: "system",
+        content: "Disconnected from chat. Please refresh to reconnect.",
+        timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, disconnectMessage]);
     };
 
     setWs(websocket);
@@ -460,7 +509,7 @@ const AnonymousChat: React.FC = () => {
   }, []);
 
   const handleSendMessage = () => {
-    if (!inputText.trim() || !ws) return;
+    if (!inputText.trim() || !ws || !isConnected) return;
 
     const newMessage: ChatMessage = {
       id: Date.now().toString(),
@@ -474,29 +523,69 @@ const AnonymousChat: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col h-[600px] bg-gray-50 rounded-xl shadow-md border border-gray-200 overflow-hidden">
+    <div className="flex flex-col h-[600px] bg-gray-50 rounded-xl shadow-lg border border-gray-200 overflow-hidden">
       {/* Chat Header */}
-      <div className="bg-blue-600 text-white p-4 flex items-center">
-        <h2 className="text-xl font-semibold">Anonymous Chat</h2>
+      <div className="bg-gradient-to-r from-blue-700 to-blue-500 text-white p-4 flex items-center">
+        <div className="flex items-center">
+          <FaUserSecret className="mr-2" />
+          <h2 className="text-xl font-semibold">Anonymous Chat</h2>
+          <span
+            className={`ml-3 h-2 w-2 rounded-full ${
+              isConnected ? "bg-green-400" : "bg-red-400"
+            }`}
+          ></span>
+          <span className="ml-1 text-xs">
+            {isConnected ? "Connected" : "Disconnected"}
+          </span>
+        </div>
+        <div className="ml-auto flex space-x-2">
+          <button
+            className="p-2 hover:bg-blue-600 rounded-full transition-colors"
+            title="Minimize"
+          >
+            <FaMinus className="h-4 w-4" />
+          </button>
+          <button
+            className="p-2 hover:bg-blue-600 rounded-full transition-colors"
+            title="Close"
+          >
+            <FaTimes className="h-4 w-4" />
+          </button>
+        </div>
       </div>
 
       {/* Messages Area */}
-      <div className="flex-1 p-4 overflow-y-auto">
+      <div
+        ref={messagesContainerRef}
+        className="flex-1 p-4 overflow-y-auto bg-gradient-to-b from-blue-50 to-white"
+      >
+        {messages.length === 0 && (
+          <div className="flex items-center justify-center h-full text-gray-500">
+            <div className="text-center">
+              <FaUserSecret className="mx-auto mb-2 text-4xl text-blue-400" />
+              <p>Your conversation is completely anonymous.</p>
+              <p className="text-sm">Start chatting to connect with someone.</p>
+            </div>
+          </div>
+        )}
+
         {messages.map((message) => (
-          <div
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
             key={message.id}
             className={`mb-4 flex ${
               message.sender === "user" ? "justify-end" : "justify-start"
             }`}
           >
             <div
-              className={`max-w-[80%] p-3 rounded-lg ${
+              className={`max-w-[80%] p-3 rounded-lg shadow-sm ${
                 message.sender === "user"
-                  ? "bg-blue-600 text-white rounded-tr-none"
+                  ? "bg-gradient-to-r from-blue-600 to-blue-500 text-white rounded-tr-none"
                   : "bg-white text-gray-800 border border-gray-200 rounded-tl-none"
               }`}
             >
-              <p>{message.content}</p>
+              <p className="whitespace-pre-wrap">{message.content}</p>
               <p className="text-xs mt-1 text-gray-500">
                 {message.timestamp.toLocaleTimeString([], {
                   hour: "2-digit",
@@ -504,7 +593,7 @@ const AnonymousChat: React.FC = () => {
                 })}
               </p>
             </div>
-          </div>
+          </motion.div>
         ))}
       </div>
 
@@ -514,31 +603,26 @@ const AnonymousChat: React.FC = () => {
           <input
             type="text"
             className="flex-1 border border-gray-300 rounded-full px-4 py-2 mx-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            placeholder="Type your message..."
+            placeholder={
+              isConnected ? "Type your message..." : "Disconnected..."
+            }
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
             onKeyPress={(e) => {
               if (e.key === "Enter") handleSendMessage();
             }}
+            disabled={!isConnected}
           />
           <button
-            className="p-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+            className={`p-3 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors ${
+              isConnected
+                ? "bg-gradient-to-r from-blue-600 to-blue-500 text-white hover:from-blue-700 hover:to-blue-600"
+                : "bg-gray-300 text-gray-500 cursor-not-allowed"
+            }`}
             onClick={handleSendMessage}
+            disabled={!isConnected}
           >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="h-6 w-6"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
-              />
-            </svg>
+            <FaPaperPlane className="h-4 w-4" />
           </button>
         </div>
       </div>
@@ -563,6 +647,7 @@ const LiveSupportChat: React.FC = () => (
 // Main Chat Features Component
 const ChatFeatures: React.FC = () => {
   const [activeChatType, setActiveChatType] = useState("Talk to a Doctor");
+  const [showInfoCard, setShowInfoCard] = useState(true);
 
   const chatOptions = [
     {
@@ -613,54 +698,88 @@ const ChatFeatures: React.FC = () => {
   };
 
   return (
-    <div className="container mx-auto py-8 px-4">
-      <h1 className="text-3xl font-bold text-center mb-8 text-gray-800">
-        Chat Support Services
-      </h1>
-      <p className="text-center text-gray-600 mb-10 max-w-3xl mx-auto">
-        Connect with mental health professionals, get support, or use our
-        AI-powered tools for guidance. All conversations are secure and
-        confidential.
-      </p>
+    <>
+      <Navbar />
+      {/* Added top padding so the navbar doesn't overlap content */}
+      <div className="pt-20 container mx-auto py-8 px-4">
+        <div className="text-center mb-12">
+          <h1 className="text-4xl font-bold mb-4 text-gray-800 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+            Mental Health Support Services
+          </h1>
+          <p className="text-gray-600 max-w-3xl mx-auto text-lg">
+            Connect with mental health professionals, get support, or use our
+            AI-powered tools for guidance. All conversations are secure and
+            confidential.
+          </p>
+        </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
-        {chatOptions.map((option) => (
-          <ChatOption
-            key={option.title}
-            icon={option.icon}
-            title={option.title}
-            description={option.description}
-            onClick={() => setActiveChatType(option.title)}
-            active={activeChatType === option.title}
-          />
-        ))}
-      </div>
+        {showInfoCard && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-blue-50 border-l-4 border-blue-500 p-4 mb-8 rounded-lg shadow-md relative"
+          >
+            <button
+              className="absolute top-2 right-2 text-gray-500 hover:text-gray-700"
+              onClick={() => setShowInfoCard(false)}
+            >
+              <FaTimes />
+            </button>
+            <div className="flex items-start">
+              <FaInfoCircle className="text-blue-500 text-xl mt-1 mr-3" />
+              <div>
+                <h3 className="font-medium text-blue-800">
+                  Welcome to our chat support platform
+                </h3>
+                <p className="text-blue-700 mt-1">
+                  Choose from any of our specialized chat services below to get
+                  the support you need. All conversations are encrypted and
+                  confidential.
+                </p>
+              </div>
+            </div>
+          </motion.div>
+        )}
 
-      {renderChatInterface()}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
+          {chatOptions.map((option) => (
+            <ChatOption
+              key={option.title}
+              icon={option.icon}
+              title={option.title}
+              description={option.description}
+              onClick={() => setActiveChatType(option.title)}
+              active={activeChatType === option.title}
+            />
+          ))}
+        </div>
 
-      <div className="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-6">
-        <h3 className="text-xl font-semibold text-gray-800 mb-3">
-          Mental Health Resources
-        </h3>
-        <p className="text-gray-700 mb-4">
-          If you're experiencing a mental health emergency, please contact:
-        </p>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="bg-white p-4 rounded-lg border border-gray-200">
-            <h4 className="font-semibold text-blue-700">
-              Sri Lanka Sumithrayo
-            </h4>
-            <p className="text-gray-600">Hotline: 011-2696666</p>
-          </div>
-          <div className="bg-white p-4 rounded-lg border border-gray-200">
-            <h4 className="font-semibold text-blue-700">
-              National Mental Health Helpline
-            </h4>
-            <p className="text-gray-600">Hotline: 1926</p>
+        {renderChatInterface()}
+
+        <div className="mt-12 bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-lg p-6 shadow-md">
+          <h3 className="text-xl font-semibold text-blue-800 mb-4">
+            Emergency Mental Health Resources
+          </h3>
+          <p className="text-gray-700 mb-6">
+            If you're experiencing a mental health emergency, please contact one
+            of these resources immediately:
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="bg-white p-5 rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
+              <h4 className="font-bold text-red-600">Sri Lanka Sumithrayo</h4>
+              <p className="mt-2 text-gray-700">Hotline: 011-2696666</p>
+            </div>
+            <div className="bg-white p-5 rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
+              <h4 className="font-bold text-red-600">
+                National Mental Health Helpline
+              </h4>
+              <p className="mt-2 text-gray-700">Hotline: 1926</p>
+            </div>
           </div>
         </div>
       </div>
-    </div>
+      <Footer />
+    </>
   );
 };
 

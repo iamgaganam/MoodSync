@@ -5,7 +5,7 @@ import {
   ExclamationCircleIcon,
 } from "@heroicons/react/24/outline";
 import { Alert, Patient } from "../data/mockData";
-import { formatDate } from "../utils/helpers";
+import { formatDate } from "../utils/Helpers";
 
 interface AlertsModalProps {
   alertsOpen: boolean;

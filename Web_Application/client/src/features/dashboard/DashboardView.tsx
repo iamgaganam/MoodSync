@@ -4,7 +4,7 @@ import {
   CalendarIcon,
   ExclamationCircleIcon,
 } from "@heroicons/react/24/outline";
-import { formatDate } from "../../utils/helpers";
+import { formatDate } from "../../utils/Helpers";
 import { Patient, Alert } from "../../data/mockData";
 
 interface DashboardViewProps {

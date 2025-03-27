@@ -6,8 +6,8 @@ import backgroundImage from "../assets/3.jpg"; // Background image
 import { Brain } from "lucide-react";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
+import { useAuth } from "../context/AuthContext"; // Adjust path as needed
 
-// Type definitions for form data and errors
 interface FormData {
   email: string;
   password: string;
@@ -20,24 +20,22 @@ interface FormErrors {
 }
 
 const LoginPage: React.FC = () => {
-  // State variables for form data, validation, loading, and success messages
+  const { login } = useAuth();
+  const navigate = useNavigate();
+
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState<FormData>({
     email: "",
     password: "",
   });
+  const [rememberMe, setRememberMe] = useState(false);
   const [errors, setErrors] = useState<FormErrors>({});
-  const [successMessage, setSuccessMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
-  const navigate = useNavigate();
-
-  // Validate form data before submitting
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {};
     let isValid = true;
 
-    // Email validation
     if (!formData.email) {
       newErrors.email = "Email is required";
       isValid = false;
@@ -46,7 +44,6 @@ const LoginPage: React.FC = () => {
       isValid = false;
     }
 
-    // Password validation
     if (!formData.password) {
       newErrors.password = "Password is required";
       isValid = false;
@@ -59,44 +56,54 @@ const LoginPage: React.FC = () => {
     return isValid;
   };
 
-  // Handle input change and update form data
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+    const { name, value, type, checked } = e.target;
 
-    // Clear the specific error when user starts typing
-    if (errors[name as keyof FormErrors]) {
-      setErrors((prev) => ({
+    // Handle checkbox for remember me
+    if (type === "checkbox") {
+      if (name === "remember-me") {
+        setRememberMe(checked);
+      }
+    } else {
+      // Handle other form inputs
+      setFormData((prev) => ({
         ...prev,
-        [name]: undefined,
+        [name]: value,
       }));
+
+      if (errors[name as keyof FormErrors]) {
+        setErrors((prev) => ({
+          ...prev,
+          [name]: undefined,
+        }));
+      }
     }
   };
 
-  // Handle form submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Validate the form before proceeding
     if (!validateForm()) return;
 
     setIsLoading(true);
-    setErrors({}); // Clear previous errors
-    setSuccessMessage(""); // Clear success message
+    setErrors({});
 
     try {
-      // Call the login API endpoint
+      // Replace with your real API endpoint
       const response = await axios.post("http://127.0.0.1:8000/login", {
         email: formData.email,
         password: formData.password,
       });
       console.log("Login success:", response.data);
-      const { access_token } = response.data;
+      const { access_token, name, email } = response.data;
+
+      // Save the token in localStorage
       localStorage.setItem("access_token", access_token);
-      // Navigate to dashboard after successful login
+
+      // Update context with user details and remember me preference
+      login({ name, email }, rememberMe);
+
+      // Navigate back to the home page
       navigate("/");
     } catch (error: any) {
       console.error("Authentication error:", error);
@@ -125,13 +132,12 @@ const LoginPage: React.FC = () => {
           backgroundRepeat: "no-repeat",
         }}
       >
-        {/* Overlay to improve form readability */}
+        {/* Overlay */}
         <div className="absolute inset-0 bg-black opacity-50 z-0"></div>
 
         <div className="sm:mx-auto sm:w-full sm:max-w-md z-10 relative">
           <div className="flex justify-center">
             <Link to="/">
-              {/* Logo */}
               <div className="flex items-center space-x-1">
                 <Brain className="h-10 w-10 text-blue-600" />
                 <span className="self-center text-2xl font-semibold whitespace-nowrap dark:text-white">
@@ -150,7 +156,6 @@ const LoginPage: React.FC = () => {
 
         <div className="mt-6 sm:mt-8 mx-auto w-full sm:max-w-md z-10 relative">
           <div className="bg-white bg-opacity-95 py-6 sm:py-8 px-4 shadow-2xl sm:rounded-lg sm:px-10 backdrop-filter backdrop-blur-sm">
-            {/* Display error or success messages */}
             {errors.general && (
               <div className="mb-4 bg-red-50 border-l-4 border-red-500 p-3 sm:p-4">
                 <div className="flex">
@@ -177,35 +182,7 @@ const LoginPage: React.FC = () => {
               </div>
             )}
 
-            {successMessage && (
-              <div className="mb-4 bg-green-50 border-l-4 border-green-500 p-3 sm:p-4">
-                <div className="flex">
-                  <div className="flex-shrink-0">
-                    <svg
-                      className="h-5 w-5 text-green-400"
-                      xmlns="http://www.w3.org/2000/svg"
-                      viewBox="0 0 20 20"
-                      fill="currentColor"
-                    >
-                      <path
-                        fillRule="evenodd"
-                        d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                        clipRule="evenodd"
-                      />
-                    </svg>
-                  </div>
-                  <div className="ml-3">
-                    <p className="text-xs sm:text-sm text-green-700">
-                      {successMessage}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Login form */}
             <form className="space-y-4 sm:space-y-6" onSubmit={handleSubmit}>
-              {/* Email Field */}
               <div>
                 <label
                   htmlFor="email"
@@ -233,7 +210,6 @@ const LoginPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Password Field */}
               <div>
                 <label
                   htmlFor="password"
@@ -272,13 +248,14 @@ const LoginPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Remember me & Forgot password links */}
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0">
                 <div className="flex items-center">
                   <input
                     id="remember-me"
                     name="remember-me"
                     type="checkbox"
+                    checked={rememberMe}
+                    onChange={handleChange}
                     className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                   />
                   <label
@@ -288,7 +265,6 @@ const LoginPage: React.FC = () => {
                     Remember me
                   </label>
                 </div>
-
                 <div className="text-xs sm:text-sm">
                   <Link
                     to="/forgot-password"
@@ -299,7 +275,6 @@ const LoginPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Submit button */}
               <div>
                 <button
                   type="submit"
@@ -339,7 +314,6 @@ const LoginPage: React.FC = () => {
               </div>
             </form>
 
-            {/* Social login options */}
             <div className="mt-5 sm:mt-6">
               <div className="relative">
                 <div className="absolute inset-0 flex items-center">
@@ -375,7 +349,6 @@ const LoginPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Link to register page */}
             <div className="mt-5 sm:mt-6">
               <div className="text-center">
                 <Link
@@ -389,7 +362,6 @@ const LoginPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Terms and Privacy Policy */}
         <div className="mt-6 text-center z-10 relative px-4">
           <p className="text-xs text-gray-300">
             By signing in or creating an account, you agree to our{" "}
@@ -410,7 +382,6 @@ const LoginPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Footer at the bottom */}
       <Footer />
     </>
   );

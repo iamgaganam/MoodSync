@@ -1,5 +1,7 @@
 import { Brain } from "lucide-react";
 import React, { useState, useRef, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext"; // Adjust the path as needed
 
 // Navigation links for the main menu
 const NAV_LINKS = [
@@ -7,21 +9,23 @@ const NAV_LINKS = [
   { label: "Mood Tracker", href: "#" },
   { label: "Mental Health Resources", href: "#" },
   { label: "Therapists Directory", href: "#" },
-  { label: "Support Groups", href: "#" },
+  { label: "Chat", href: "/chat" },
+  { label: "Emergency", href: "/emergency" },
+  { label: "Health", href: "/health" },
 ];
 
 // Dropdown items for the user menu
 const DROPDOWN_ITEMS = [
-  { label: "Dashboard", href: "#" },
+  { label: "My Profile", href: "/userprofile" },
   { label: "Settings", href: "#" },
   { label: "Earnings", href: "#" },
-  { label: "Sign out", href: "#" },
+  { label: "Sign out", href: "#", isAction: true },
 ];
 
 const Navbar: React.FC = () => {
-  // State for dropdown and mobile menu visibility
+  const { isLoggedIn, user, logout } = useAuth();
+  const navigate = useNavigate();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // Refs for DOM elements
@@ -59,10 +63,6 @@ const Navbar: React.FC = () => {
     setIsMobileMenuOpen(false);
   };
 
-  // Simulate login
-  const handleLogin = () => setIsLoggedIn(true);
-
-  // Add event listeners for click outside and scroll
   useEffect(() => {
     document.addEventListener("click", handleClickOutside);
     window.addEventListener("scroll", handleScroll);
@@ -72,17 +72,33 @@ const Navbar: React.FC = () => {
     };
   }, []);
 
-  // Common dropdown list content
+  // Handle sign out
+  const handleSignOut = () => {
+    logout();
+    setIsDropdownOpen(false);
+    navigate("/login");
+  };
+
+  // Dropdown list content
   const dropdownList = (
     <ul className="py-2" aria-labelledby="user-menu-button">
       {DROPDOWN_ITEMS.map((item) => (
         <li key={item.label}>
-          <a
-            href={item.href}
-            className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 dark:text-gray-200 dark:hover:text-white"
-          >
-            {item.label}
-          </a>
+          {item.isAction ? (
+            <button
+              onClick={handleSignOut}
+              className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 dark:text-gray-200 dark:hover:text-white"
+            >
+              {item.label}
+            </button>
+          ) : (
+            <a
+              href={item.href}
+              className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 dark:text-gray-200 dark:hover:text-white"
+            >
+              {item.label}
+            </a>
+          )}
         </li>
       ))}
     </ul>
@@ -92,12 +108,12 @@ const Navbar: React.FC = () => {
     <nav className="bg-white dark:bg-gray-900 w-full fixed top-0 left-0 z-50 h-16">
       <div className="flex justify-between items-center mx-auto p-4 w-full relative">
         {/* Logo */}
-        <a href="" className="flex items-center space-x-1">
+        <Link to="/" className="flex items-center space-x-1">
           <Brain className="h-8 w-8 text-blue-600" />
           <span className="self-center text-2xl font-semibold whitespace-nowrap dark:text-white">
             MoodSync
           </span>
-        </a>
+        </Link>
 
         {/* Desktop Navigation Links */}
         <div className="hidden md:flex flex-1 justify-center items-center">
@@ -143,13 +159,13 @@ const Navbar: React.FC = () => {
         {/* Desktop Right Section (Login/Profile) */}
         <div className="hidden md:flex items-center space-x-3">
           {!isLoggedIn ? (
-            <button
-              type="button"
-              onClick={handleLogin}
+            // Instead of directly logging in, redirect to the login page
+            <Link
+              to="/login"
               className="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-4 py-2 dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800"
             >
               Get started
-            </button>
+            </Link>
           ) : (
             <>
               <button
@@ -164,9 +180,8 @@ const Navbar: React.FC = () => {
                   <img
                     className="w-10 h-10 rounded-full ring-2 ring-gray-300 dark:ring-gray-500"
                     src="https://i1.sndcdn.com/artworks-lEAsN83kbdQScsx7-DmxtKw-t500x500.jpg"
-                    alt="Bordered avatar"
+                    alt="user avatar"
                   />
-
                   <span className="top-0 left-7 absolute w-3 h-3 bg-green-400 border-2 border-white dark:border-gray-800 rounded-full" />
                 </div>
               </button>
@@ -188,11 +203,13 @@ const Navbar: React.FC = () => {
                     maxHeight: "none",
                   }}
                 >
-                  <div className="px-4 py-2 text-xs text-gray-700 dark:text-gray-300">
-                    <span className="block">Gagana Methmal</span>
-                    <span className="block text-gray-500 truncate dark:text-gray-400">
-                      gaganam220@gmail.com
-                    </span>
+                  <div className="px-4 py-3 text-sm text-gray-900 dark:text-white">
+                    <div className="font-medium truncate">
+                      {user?.name || "User"}
+                    </div>
+                    <div className="truncate text-gray-500 dark:text-gray-400">
+                      {user?.email || "user@example.com"}
+                    </div>
                   </div>
                   {dropdownList}
                 </div>
@@ -212,73 +229,49 @@ const Navbar: React.FC = () => {
                 <li key={link.label}>
                   <a
                     href={link.href}
-                    className="block py-2 text-gray-900 hover:text-blue-700 dark:text-white dark:hover:text-blue-500"
+                    className="block py-2 pl-3 pr-4 text-gray-900 rounded hover:bg-gray-100 dark:text-white dark:hover:bg-gray-700 dark:hover:text-white"
                   >
                     {link.label}
                   </a>
                 </li>
               ))}
-              <li className="border-t pt-4 dark:border-gray-700">
-                {!isLoggedIn ? (
-                  <button
-                    type="button"
-                    onClick={handleLogin}
-                    className="w-full text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-4 py-2 dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800"
-                  >
-                    Get started
-                  </button>
-                ) : (
-                  <div>
-                    <button
-                      ref={userButtonRef}
-                      type="button"
-                      className="flex items-center space-x-4 w-full focus:outline-none"
-                      onClick={toggleDropdown}
-                    >
-                      <img
-                        className="w-10 h-10 rounded-full"
-                        src="https://i1.sndcdn.com/artworks-lEAsN83kbdQScsx7-DmxtKw-t500x500.jpg"
-                        alt="user photo"
-                      />
-                      <div className="text-left">
-                        <div className="text-sm font-medium text-gray-900 dark:text-white">
-                          Gagana Methmal
-                        </div>
-                        <div className="text-sm text-gray-500 dark:text-gray-400">
-                          gaganam220@gmail.com
-                        </div>
-                      </div>
-                      <svg
-                        className="ml-auto w-4 h-4"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                        xmlns="http://www.w3.org/2000/svg"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d={
-                            isDropdownOpen ? "M5 15l7-7 7 7" : "M19 9l-7 7-7-7"
-                          }
-                        />
-                      </svg>
-                    </button>
-                    {/* Mobile Dropdown */}
-                    {isDropdownOpen && (
-                      <div
-                        ref={dropdownRef}
-                        className="z-50 text-sm list-none bg-white divide-y divide-gray-100 rounded-lg shadow-sm dark:bg-gray-700 dark:divide-gray-600 mt-2"
-                        style={{ position: "static", width: "100%" }}
-                      >
-                        {dropdownList}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </li>
             </ul>
+
+            {/* Mobile Login/Profile Section */}
+            <div className="pt-2 pb-4 px-4 border-t border-gray-200 dark:border-gray-600">
+              {!isLoggedIn ? (
+                <Link
+                  to="/login"
+                  className="w-full text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800"
+                >
+                  Get started
+                </Link>
+              ) : (
+                <div className="flex items-center space-x-4">
+                  <div className="flex-shrink-0">
+                    <img
+                      className="w-10 h-10 rounded-full ring-2 ring-gray-300 dark:ring-gray-500"
+                      src="https://i1.sndcdn.com/artworks-lEAsN83kbdQScsx7-DmxtKw-t500x500.jpg"
+                      alt="user avatar"
+                    />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-900 truncate dark:text-white">
+                      {user?.name || "User"}
+                    </p>
+                    <p className="text-sm text-gray-500 truncate dark:text-gray-400">
+                      {user?.email || "user@example.com"}
+                    </p>
+                  </div>
+                  <button
+                    onClick={handleSignOut}
+                    className="text-sm text-red-600 hover:underline dark:text-red-500"
+                  >
+                    Sign out
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>

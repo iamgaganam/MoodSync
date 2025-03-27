@@ -7,7 +7,7 @@ import {
 } from "@heroicons/react/24/outline";
 import { format } from "date-fns";
 import { Patient, Message, ChatSession } from "../../data/mockData";
-import { getSentimentColor } from "../../utils/helpers";
+import { getSentimentColor } from "../../utils/Helpers";
 
 interface ChatViewProps {
   selectedPatient: Patient | null;
