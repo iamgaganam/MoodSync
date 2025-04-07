@@ -6,12 +6,11 @@ import { useAuth } from "../context/AuthContext"; // Adjust the path as needed
 // Navigation links for the main menu
 const NAV_LINKS = [
   { label: "Home", href: "/" },
-  { label: "Mood Tracker", href: "#" },
-  { label: "Mental Health Resources", href: "#" },
-  { label: "Therapists Directory", href: "#" },
   { label: "Chat", href: "/chat" },
-  { label: "Emergency", href: "/emergency" },
   { label: "Health", href: "/health" },
+  { label: "Therapists Directory", href: "/channel" },
+  { label: "Mental Health Resources", href: "/community" },
+  { label: "Emergency", href: "/emergency" },
 ];
 
 // Dropdown items for the user menu

@@ -46,42 +46,16 @@ const EmergencyAlerts: React.FC = () => {
   const [alertsOpen, setAlertsOpen] = useState(false);
   const [supportOpen, setSupportOpen] = useState(false);
 
-  const handleAddContact = async () => {
+  const handleAddContact = () => {
     if (newContactName && newContactPhone) {
-      try {
-        const response = await fetch(
-          "http://localhost:8000/api/emergency_contacts",
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              name: newContactName,
-              phone: newContactPhone,
-            }),
-          }
-        );
-
-        if (!response.ok) {
-          throw new Error("Failed to add contact");
-        }
-
-        const data = await response.json();
-        console.log("Contact saved:", data);
-
-        // Optionally update local state to reflect the change immediately:
-        setPersonalContacts([
-          ...personalContacts,
-          { name: newContactName, phone: newContactPhone },
-        ]);
-        setNewContactName("");
-        setNewContactPhone("");
-        setShowAddForm(false);
-      } catch (error) {
-        alert("Error adding contact");
-        console.error(error);
-      }
+      // Update local state without backend connection
+      setPersonalContacts([
+        ...personalContacts,
+        { name: newContactName, phone: newContactPhone },
+      ]);
+      setNewContactName("");
+      setNewContactPhone("");
+      setShowAddForm(false);
     } else {
       alert("Please enter both name and phone number.");
     }

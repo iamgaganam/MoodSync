@@ -30,10 +30,10 @@ import Navbar from "../components/Navbar"; // Make sure the path is correct
 
 // Sample data (in a real app, this would come from your API)
 const SAMPLE_USER = {
-  name: "Amal Perera",
-  email: "amal.perera@gmail.com",
-  joinDate: "2023-08-15",
-  profileImage: "/api/placeholder/150/150",
+  name: "Gagana Methmal",
+  email: "gaganam220@gmail.com",
+  joinDate: "2025-02-23",
+  profileImage: "/assets/drake.jpeg", // Path to assets folder in project directory
   location: "Colombo, Sri Lanka",
   therapistName: "Dr. Nirmala Silva",
   nextAppointment: "2025-03-07T14:30:00",

@@ -17,6 +17,7 @@ import NotFound from "./components/Error";
 import AdminDashboard from "./pages/AdminDashboard";
 import DoctorDashboard from "./pages/DoctorDashboard";
 import HealthInsightsDashboard from "./pages/HealthInsights";
+import DoctorChannelPage from "./pages/ChannelPage";
 
 const App: React.FC = () => {
   return (
@@ -31,10 +32,12 @@ const App: React.FC = () => {
             <Route path="/userprofile" element={<UserProfilePages />} />
             <Route path="/chat" element={<ChatFeatures />} />
             <Route path="/emergency" element={<EmergencyAlerts />} />
-            <Route path="/com" element={<CommunitySupportPages />} />
-            <Route path="/doh" element={<DoctorDashboard />} />
-            <Route path="/ahh" element={<AdminDashboard />} />
+            <Route path="/community" element={<CommunitySupportPages />} />
             <Route path="/health" element={<HealthInsightsDashboard />} />
+            <Route path="/channel" element={<DoctorChannelPage />} />
+
+            <Route path="/doc" element={<DoctorDashboard />} />
+            <Route path="/admin" element={<AdminDashboard />} />
           </Routes>
         </div>
       </Router>

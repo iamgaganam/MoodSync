@@ -30,6 +30,10 @@ import {
   Activity,
 } from "lucide-react";
 
+// Import your Navbar and Footer components (update the paths as needed)
+import Navbar from "../components/Navbar";
+import Footer from "../components/Footer";
+
 // Sample data – you can replace these with your actual data from your backend.
 const moodData = [
   { date: "Jan 1", mood: 7, anxiety: 3, stress: 4 },
@@ -92,51 +96,60 @@ const HealthInsightsDashboard = () => {
   };
 
   return (
-    <div className="bg-gray-50 min-h-screen p-6">
-      <div className="max-w-7xl mx-auto">
-        <h1 className="text-3xl font-bold text-gray-800 mb-6">
-          Health Insights & Visualization
-        </h1>
+    <div className="min-h-screen flex flex-col">
+      {/* Navbar at the top */}
+      <Navbar />
 
-        {/* Tabs */}
-        <div className="flex flex-wrap gap-2 mb-6 bg-white p-2 rounded-lg shadow-sm">
-          <TabButton
-            active={activeTab === "myHealth"}
-            onClick={() => setActiveTab("myHealth")}
-            icon={<Heart className="w-4 h-4 mr-2" />}
-            label="My Health Overview"
-          />
-          <TabButton
-            active={activeTab === "trends"}
-            onClick={() => setActiveTab("trends")}
-            icon={<TrendingUp className="w-4 h-4 mr-2" />}
-            label="Mental Health Trends"
-          />
-          <TabButton
-            active={activeTab === "wellness"}
-            onClick={() => setActiveTab("wellness")}
-            icon={<Brain className="w-4 h-4 mr-2" />}
-            label="Wellness Insights"
-          />
-          <TabButton
-            active={activeTab === "visualization"}
-            onClick={() => setActiveTab("visualization")}
-            icon={<Activity className="w-4 h-4 mr-2" />}
-            label="Health Data Visualization"
-          />
-          <TabButton
-            active={activeTab === "graphical"}
-            onClick={() => setActiveTab("graphical")}
-            icon={<CalendarDays className="w-4 h-4 mr-2" />}
-            label="Graphical Insights"
-          />
-        </div>
+      {/* Main Content */}
+      <div className="flex-grow bg-gray-50 p-6">
+        <div className="max-w-7xl mx-auto">
+          <h1 className="text-3xl font-bold text-gray-800 mb-6">
+            Health Insights & Visualization
+          </h1>
 
-        {/* Content */}
-        <div className="bg-white rounded-lg shadow-md p-6">
-          {renderTabContent()}
+          {/* Tabs */}
+          <div className="flex flex-wrap gap-2 mb-6 bg-white p-2 rounded-lg shadow-sm">
+            <TabButton
+              active={activeTab === "myHealth"}
+              onClick={() => setActiveTab("myHealth")}
+              icon={<Heart className="w-4 h-4 mr-2" />}
+              label="My Health Overview"
+            />
+            <TabButton
+              active={activeTab === "trends"}
+              onClick={() => setActiveTab("trends")}
+              icon={<TrendingUp className="w-4 h-4 mr-2" />}
+              label="Mental Health Trends"
+            />
+            <TabButton
+              active={activeTab === "wellness"}
+              onClick={() => setActiveTab("wellness")}
+              icon={<Brain className="w-4 h-4 mr-2" />}
+              label="Wellness Insights"
+            />
+            <TabButton
+              active={activeTab === "visualization"}
+              onClick={() => setActiveTab("visualization")}
+              icon={<Activity className="w-4 h-4 mr-2" />}
+              label="Health Data Visualization"
+            />
+            <TabButton
+              active={activeTab === "graphical"}
+              onClick={() => setActiveTab("graphical")}
+              icon={<CalendarDays className="w-4 h-4 mr-2" />}
+              label="Graphical Insights"
+            />
+          </div>
+
+          {/* Render Tab Content */}
+          <div className="bg-white rounded-lg shadow-md p-6">
+            {renderTabContent()}
+          </div>
         </div>
       </div>
+
+      {/* Footer at the bottom */}
+      <Footer />
     </div>
   );
 };
