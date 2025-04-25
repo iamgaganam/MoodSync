@@ -23,29 +23,123 @@ import {
 } from "lucide-react";
 
 // -------------------------
+// TypeScript Interfaces
+// -------------------------
+interface Activity {
+  type: string;
+  detail: string;
+  time: string;
+}
+
+interface UserData {
+  id: number;
+  name: string;
+  email: string;
+  phone: string;
+  location: string;
+  active: boolean;
+  joinDate: string;
+  currentMood: number;
+  riskLevel: string;
+  recentActivity: Activity[];
+  lastActive: string;
+  assignedTo: string;
+}
+
+interface AlertData {
+  id: number;
+  type: string;
+  description: string;
+  userName: string;
+  userId: number;
+  userContact: string;
+  timestamp: string;
+  status: string;
+  severity: string;
+  triggerDetail: string;
+  triggerContent: string;
+  recommendedActions: string[];
+}
+
+interface Assignment {
+  userName: string;
+  status: string;
+}
+
+interface ProfessionalData {
+  id: number;
+  name: string;
+  email: string;
+  phone: string;
+  hospital: string;
+  active: boolean;
+  joinDate: string;
+  verified: boolean;
+  specialty: string;
+  specializations: string[];
+  languages: string[];
+  education: string;
+  licenseNumber: string;
+  currentAssignments: Assignment[];
+  availabilityStatus: string;
+  availableHours: string;
+  nextAvailableSlot: string;
+}
+
+interface UserActivity {
+  type: string;
+  user: string;
+  action: string;
+  time: string;
+}
+
+interface MoodDistribution {
+  label: string;
+  percentage: number;
+}
+
+interface AnalyticsData {
+  overallSentiment: number;
+  recentActivity: UserActivity[];
+  moodDistribution: MoodDistribution[];
+}
+
+interface NotificationData {
+  id: number;
+  message: string;
+}
+
+interface ChatSessionData {
+  id: number;
+  participants: string[];
+  lastMessage: string;
+  time: string;
+  flagged: boolean;
+}
+
+// -------------------------
 // Helper Functions
 // -------------------------
-const getMoodColor = (mood: number) => {
+const getMoodColor = (mood: number): string => {
   if (mood < 33) return "bg-red-500";
   if (mood < 66) return "bg-yellow-500";
   return "bg-green-500";
 };
 
-const getRiskColor = (risk: string) => {
+const getRiskColor = (risk: string): string => {
   if (risk === "High") return "bg-red-100 text-red-800";
   if (risk === "Medium") return "bg-yellow-100 text-yellow-800";
   return "bg-green-100 text-green-800";
 };
 
-const getRiskLabel = (risk: string) => risk;
+const getRiskLabel = (risk: string): string => risk;
 
-const getAlertTypeColor = (type: string) => {
+const getAlertTypeColor = (type: string): string => {
   if (type.toLowerCase().includes("critical")) return "bg-red-50";
   return "bg-blue-50";
 };
 
-const getMoodBarColor = (label: string) => {
-  // Example: adjust these conditions as needed
+const getMoodBarColor = (label: string): string => {
   if (
     label.toLowerCase().includes("excellent") ||
     label.toLowerCase().includes("happy")
@@ -64,50 +158,91 @@ const getMoodBarColor = (label: string) => {
   return "bg-blue-500";
 };
 
-const getAlertIconBgColor = (type: string) => {
+const getAlertIconBgColor = (type: string): string => {
   if (type.toLowerCase().includes("critical")) return "bg-red-100";
   if (type.toLowerCase().includes("high")) return "bg-yellow-100";
   return "bg-blue-100";
 };
 
-const getAlertIconColor = (type: string) => {
+const getAlertIconColor = (type: string): string => {
   if (type.toLowerCase().includes("critical")) return "text-red-600";
   if (type.toLowerCase().includes("high")) return "text-yellow-600";
   return "text-blue-600";
 };
 
 // -------------------------
-// Mock Data
+// Mock Data (Updated for Sri Lanka)
 // -------------------------
-const mockUsers = [
+const mockUsers: UserData[] = [
   {
     id: 1,
-    name: "John Doe",
-    email: "john@example.com",
-    phone: "555-1234",
-    location: "New York",
+    name: "Sahan Perera",
+    email: "sahan@gmail.com",
+    phone: "077-123-4567",
+    location: "Colombo",
     active: true,
     joinDate: "2021-01-15",
     currentMood: 70,
     riskLevel: "Low",
     recentActivity: [
-      { type: "Login", detail: "Logged in from web", time: "2 hours ago" },
+      { type: "Login", detail: "Logged in from mobile", time: "2 hours ago" },
       { type: "Update", detail: "Updated profile", time: "1 day ago" },
     ],
     lastActive: "10 minutes ago",
-    assignedTo: "Dr. Smith",
+    assignedTo: "Dr. Fernando",
   },
-  // add more users as needed
+  {
+    id: 2,
+    name: "Dilshan Silva",
+    email: "dilshan@gmail.com",
+    phone: "071-234-5678",
+    location: "Kandy",
+    active: true,
+    joinDate: "2022-03-10",
+    currentMood: 45,
+    riskLevel: "Medium",
+    recentActivity: [
+      {
+        type: "Assessment",
+        detail: "Completed weekly check-in",
+        time: "5 hours ago",
+      },
+      { type: "Chat", detail: "Messaged counselor", time: "2 days ago" },
+    ],
+    lastActive: "5 hours ago",
+    assignedTo: "Dr. Gunawardena",
+  },
+  {
+    id: 3,
+    name: "Amali Jayawardena",
+    email: "amali@gmail.com",
+    phone: "075-345-6789",
+    location: "Galle",
+    active: false,
+    joinDate: "2021-11-22",
+    currentMood: 25,
+    riskLevel: "High",
+    recentActivity: [
+      { type: "Mood", detail: "Reported low mood", time: "3 days ago" },
+      {
+        type: "Assessment",
+        detail: "Missed scheduled assessment",
+        time: "1 week ago",
+      },
+    ],
+    lastActive: "3 days ago",
+    assignedTo: "Dr. Fernando",
+  },
 ];
 
-const mockAlerts = [
+const mockAlerts: AlertData[] = [
   {
     id: 1,
     type: "Critical",
     description: "User reported severe distress",
-    userName: "John Doe",
-    userId: 1,
-    userContact: "john@example.com",
+    userName: "Amali Jayawardena",
+    userId: 3,
+    userContact: "amali@gmail.com",
     timestamp: "2023-03-15 10:30 AM",
     status: "New",
     severity: "Critical",
@@ -122,9 +257,9 @@ const mockAlerts = [
     id: 2,
     type: "High",
     description: "Elevated risk behavior detected",
-    userName: "Jane Smith",
+    userName: "Dilshan Silva",
     userId: 2,
-    userContact: "jane@example.com",
+    userContact: "dilshan@gmail.com",
     timestamp: "2023-03-16 09:15 AM",
     status: "In Progress",
     severity: "High",
@@ -132,63 +267,118 @@ const mockAlerts = [
     triggerContent: "",
     recommendedActions: ["Reset password", "Notify user"],
   },
-  // add more alerts as needed
+  {
+    id: 3,
+    type: "Medium",
+    description: "Missed scheduled sessions",
+    userName: "Kumari Fernando",
+    userId: 4,
+    userContact: "kumari@gmail.com",
+    timestamp: "2023-03-17 14:20 PM",
+    status: "Resolved",
+    severity: "Medium",
+    triggerDetail: "User has missed 3 consecutive appointments",
+    triggerContent: "",
+    recommendedActions: ["Contact user", "Reschedule appointment"],
+  },
 ];
 
-const mockProfessionals = [
+const mockProfessionals: ProfessionalData[] = [
   {
     id: 1,
-    name: "Dr. Smith",
-    email: "dr.smith@example.com",
-    phone: "555-5678",
-    hospital: "General Hospital",
+    name: "Dr. Lasith Fernando",
+    email: "dr.fernando@nationalhospital.lk",
+    phone: "071-567-8901",
+    hospital: "National Hospital of Sri Lanka",
     active: true,
     joinDate: "2020-08-20",
     verified: true,
     specialty: "Psychiatry",
-    specializations: ["Psychology", "Therapy"],
-    languages: ["English", "Spanish"],
-    education: "PhD in Psychology",
-    licenseNumber: "XYZ12345",
+    specializations: ["Clinical Psychology", "Cognitive Behavioral Therapy"],
+    languages: ["Sinhala", "English", "Tamil"],
+    education: "MD in Psychiatry, University of Colombo",
+    licenseNumber: "SLMC-12345",
     currentAssignments: [
-      { userName: "John Doe", status: "Active" },
-      { userName: "Jane Doe", status: "Pending" },
+      { userName: "Sahan Perera", status: "Active" },
+      { userName: "Amali Jayawardena", status: "Pending" },
     ],
     availabilityStatus: "Available",
     availableHours: "9 AM - 5 PM",
     nextAvailableSlot: "Tomorrow at 10 AM",
   },
-  // add more professionals as needed
+  {
+    id: 2,
+    name: "Dr. Rashmi Gunawardena",
+    email: "dr.gunawardena@kandy.hospital",
+    phone: "077-678-9012",
+    hospital: "Kandy General Hospital",
+    active: true,
+    joinDate: "2019-05-15",
+    verified: true,
+    specialty: "Clinical Psychology",
+    specializations: ["Depression", "Anxiety Disorders"],
+    languages: ["Sinhala", "English"],
+    education: "PhD in Psychology, University of Peradeniya",
+    licenseNumber: "SLMC-23456",
+    currentAssignments: [{ userName: "Dilshan Silva", status: "Active" }],
+    availabilityStatus: "Busy",
+    availableHours: "10 AM - 6 PM",
+    nextAvailableSlot: "Friday at 2 PM",
+  },
+  {
+    id: 3,
+    name: "Dr. Anura Dissanayake",
+    email: "dr.dissanayake@lady-ridgeway.lk",
+    phone: "070-789-0123",
+    hospital: "Lady Ridgeway Hospital",
+    active: true,
+    joinDate: "2021-02-10",
+    verified: true,
+    specialty: "Child Psychology",
+    specializations: ["Childhood Trauma", "Developmental Disorders"],
+    languages: ["Sinhala", "English", "Tamil"],
+    education: "MD in Child Psychiatry, University of Colombo",
+    licenseNumber: "SLMC-34567",
+    currentAssignments: [],
+    availabilityStatus: "Available",
+    availableHours: "8 AM - 4 PM",
+    nextAvailableSlot: "Today at 3 PM",
+  },
 ];
 
-const mockAnalytics = {
+const mockAnalytics: AnalyticsData = {
   overallSentiment: 4.2,
   recentActivity: [
     {
       type: "login",
-      user: "John Doe",
+      user: "Sahan Perera",
       action: "Logged in",
       time: "10 minutes ago",
     },
     {
       type: "assessment",
-      user: "Jane Smith",
+      user: "Kesha Perera",
       action: "Completed assessment",
       time: "1 hour ago",
     },
     {
       type: "chat",
-      user: "John Doe",
+      user: "Dilshan Silva",
       action: "Started chat",
       time: "2 hours ago",
     },
     {
       type: "mood",
-      user: "Alice",
+      user: "Amali Jayawardena",
       action: "Updated mood",
       time: "3 hours ago",
     },
-    { type: "login", user: "Bob", action: "Logged in", time: "4 hours ago" },
+    {
+      type: "login",
+      user: "Kumari Fernando",
+      action: "Logged in",
+      time: "4 hours ago",
+    },
   ],
   moodDistribution: [
     { label: "Excellent", percentage: 40 },
@@ -197,28 +387,91 @@ const mockAnalytics = {
   ],
 };
 
-const mockNotifications = [
-  { id: 1, message: "New user registered" },
-  { id: 2, message: "Alert: User distress detected" },
+const mockNotifications: NotificationData[] = [
+  { id: 1, message: "New user registered from Colombo" },
+  { id: 2, message: "Alert: User distress detected in Kandy" },
 ];
 
-const mockChatSessions = [
+const mockChatSessions: ChatSessionData[] = [
   {
     id: 1,
-    participants: ["John Doe", "Dr. Smith"],
-    lastMessage: "Please help me with my assessment.",
+    participants: ["Sahan Perera", "Dr. Fernando"],
+    lastMessage: "I'll try the meditation exercises you recommended.",
     time: "5 minutes ago",
-    flagged: true,
+    flagged: false,
   },
   {
     id: 2,
-    participants: ["Jane Smith", "Dr. Smith"],
-    lastMessage: "I have some concerns about my treatment.",
+    participants: ["Dilshan Silva", "Dr. Gunawardena"],
+    lastMessage: "I have some concerns about my medication.",
     time: "20 minutes ago",
-    flagged: false,
+    flagged: true,
   },
-  // add more chat sessions as needed
+  {
+    id: 3,
+    participants: ["Amali Jayawardena", "Dr. Fernando"],
+    lastMessage: "I've been feeling much worse this week.",
+    time: "1 hour ago",
+    flagged: true,
+  },
 ];
+
+// -------------------------
+// Component Props Interfaces
+// -------------------------
+interface SidebarLinkProps {
+  icon: React.ReactNode;
+  title: string;
+  isActive: boolean;
+  onClick: () => void;
+  collapsed: boolean;
+}
+
+interface ModalProps {
+  title: string;
+  children: React.ReactNode;
+  onClose: () => void;
+}
+
+interface StatCardProps {
+  title: string;
+  value: string;
+  change: string;
+  icon: React.ReactNode;
+  positive: boolean;
+}
+
+interface QuickActionCardProps {
+  title: string;
+  icon: React.ReactNode;
+  onClick: () => void;
+}
+
+interface DashboardContentProps {
+  analytics: AnalyticsData | null;
+  users: UserData[];
+  alerts: AlertData[];
+  professionals: ProfessionalData[];
+}
+
+interface UsersContentProps {
+  users: UserData[];
+  onUserSelect: (user: UserData) => void;
+}
+
+interface AlertsContentProps {
+  alerts: AlertData[];
+  onAlertSelect: (alert: AlertData) => void;
+}
+
+interface ProfessionalsContentProps {
+  professionals: ProfessionalData[];
+  onProfessionalSelect: (professional: ProfessionalData) => void;
+}
+
+interface AnalyticsContentProps {
+  analytics: AnalyticsData | null;
+}
 
 // -------------------------
 // Main Admin Dashboard Component
@@ -226,19 +479,20 @@ const mockChatSessions = [
 const AdminDashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState("dashboard");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [users, setUsers] = useState<any[]>([]);
-  const [alerts, setAlerts] = useState<any[]>([]);
-  const [professionals, setProfessionals] = useState<any[]>([]);
-  const [analytics, setAnalytics] = useState<any>(null);
+  const [users, setUsers] = useState<UserData[]>([]);
+  const [alerts, setAlerts] = useState<AlertData[]>([]);
+  const [professionals, setProfessionals] = useState<ProfessionalData[]>([]);
+  const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [selectedAlert, setSelectedAlert] = useState<any>(null);
-  const [selectedUser, setSelectedUser] = useState<any>(null);
+  const [selectedAlert, setSelectedAlert] = useState<AlertData | null>(null);
+  const [selectedUser, setSelectedUser] = useState<UserData | null>(null);
   const [showUserModal, setShowUserModal] = useState(false);
   const [showAlertModal, setShowAlertModal] = useState(false);
   const [showProfessionalModal, setShowProfessionalModal] = useState(false);
-  const [selectedProfessional, setSelectedProfessional] = useState<any>(null);
+  const [selectedProfessional, setSelectedProfessional] =
+    useState<ProfessionalData | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [notifications, setNotifications] = useState<any[]>([]);
+  const [notifications, setNotifications] = useState<NotificationData[]>([]);
 
   // Simulate API calls
   useEffect(() => {
@@ -258,26 +512,28 @@ const AdminDashboard: React.FC = () => {
       user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       user.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
   const filteredAlerts = alerts.filter(
     (alert) =>
       alert.userName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       alert.type.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
   const filteredProfessionals = professionals.filter((professional) =>
     professional.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const handleUserSelect = (user: any) => {
+  const handleUserSelect = (user: UserData) => {
     setSelectedUser(user);
     setShowUserModal(true);
   };
 
-  const handleAlertSelect = (alert: any) => {
+  const handleAlertSelect = (alert: AlertData) => {
     setSelectedAlert(alert);
     setShowAlertModal(true);
   };
 
-  const handleProfessionalSelect = (professional: any) => {
+  const handleProfessionalSelect = (professional: ProfessionalData) => {
     setSelectedProfessional(professional);
     setShowProfessionalModal(true);
   };
@@ -291,9 +547,7 @@ const AdminDashboard: React.FC = () => {
         }`}
       >
         <div className="p-4 flex items-center justify-between">
-          {!sidebarCollapsed && (
-            <h2 className="text-xl font-bold">MindfulTrack</h2>
-          )}
+          {!sidebarCollapsed && <h2 className="text-xl font-bold">MoodSync</h2>}
           <button
             onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
             className="p-1 rounded-md hover:bg-indigo-700 transition-colors"
@@ -588,7 +842,7 @@ const AdminDashboard: React.FC = () => {
               </h4>
               <div className="space-y-3">
                 {selectedUser.recentActivity.map(
-                  (activity: any, idx: number) => (
+                  (activity: Activity, idx: number) => (
                     <div key={idx} className="flex items-start">
                       <div className="min-w-0 flex-1">
                         <p className="text-sm font-medium text-gray-900">
@@ -818,7 +1072,7 @@ const AdminDashboard: React.FC = () => {
               </h4>
               <div className="space-y-2">
                 {selectedProfessional.currentAssignments.map(
-                  (assignment: any, idx: number) => (
+                  (assignment: Assignment, idx: number) => (
                     <div
                       key={idx}
                       className="flex justify-between items-center text-sm"
@@ -885,13 +1139,13 @@ const AdminDashboard: React.FC = () => {
 // -------------------------
 // Reusable Components
 // -------------------------
-const SidebarLink: React.FC<{
-  icon: React.ReactNode;
-  title: string;
-  isActive: boolean;
-  onClick: () => void;
-  collapsed: boolean;
-}> = ({ icon, title, isActive, onClick, collapsed }) => {
+const SidebarLink: React.FC<SidebarLinkProps> = ({
+  icon,
+  title,
+  isActive,
+  onClick,
+  collapsed,
+}) => {
   return (
     <a
       href="#"
@@ -911,11 +1165,7 @@ const SidebarLink: React.FC<{
   );
 };
 
-const Modal: React.FC<{
-  title: string;
-  children: React.ReactNode;
-  onClose: () => void;
-}> = ({ title, children, onClose }) => {
+const Modal: React.FC<ModalProps> = ({ title, children, onClose }) => {
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg shadow-xl w-full max-w-3xl max-h-[90vh] overflow-hidden">
@@ -936,13 +1186,13 @@ const Modal: React.FC<{
   );
 };
 
-const StatCard: React.FC<{
-  title: string;
-  value: string;
-  change: string;
-  icon: React.ReactNode;
-  positive: boolean;
-}> = ({ title, value, change, icon, positive }) => {
+const StatCard: React.FC<StatCardProps> = ({
+  title,
+  value,
+  change,
+  icon,
+  positive,
+}) => {
   return (
     <div className="bg-white rounded-lg shadow p-6">
       <div className="flex items-center justify-between">
@@ -963,11 +1213,11 @@ const StatCard: React.FC<{
   );
 };
 
-const QuickActionCard: React.FC<{
-  title: string;
-  icon: React.ReactNode;
-  onClick: () => void;
-}> = ({ title, icon, onClick }) => {
+const QuickActionCard: React.FC<QuickActionCardProps> = ({
+  title,
+  icon,
+  onClick,
+}) => {
   return (
     <button
       className="flex flex-col items-center p-4 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition-colors"
@@ -982,12 +1232,12 @@ const QuickActionCard: React.FC<{
 // -------------------------
 // Tab Components
 // -------------------------
-const DashboardContent: React.FC<{
-  analytics: any;
-  users: any[];
-  alerts: any[];
-  professionals: any[];
-}> = ({ analytics, users, alerts, professionals }) => {
+const DashboardContent: React.FC<DashboardContentProps> = ({
+  analytics,
+  users,
+  alerts,
+  professionals,
+}) => {
   return (
     <div className="space-y-6">
       {/* Stats Overview */}
@@ -1002,9 +1252,7 @@ const DashboardContent: React.FC<{
         <StatCard
           title="Active Alerts"
           value={alerts
-            .filter(
-              (a: any) => a.status === "New" || a.status === "In Progress"
-            )
+            .filter((a) => a.status === "New" || a.status === "In Progress")
             .length.toString()}
           change="-5%"
           icon={<AlertCircle size={20} className="text-red-500" />}
@@ -1032,11 +1280,11 @@ const DashboardContent: React.FC<{
         <div className="space-y-4">
           {alerts
             .filter(
-              (alert: any) =>
+              (alert) =>
                 alert.severity === "Critical" || alert.severity === "High"
             )
             .slice(0, 5)
-            .map((alert: any, idx: number) => (
+            .map((alert, idx) => (
               <div key={idx} className="flex">
                 <div className="flex-shrink-0">
                   <div className="h-10 w-10 rounded-full bg-red-100 flex items-center justify-center">
@@ -1088,40 +1336,36 @@ const DashboardContent: React.FC<{
             <h2 className="text-lg font-medium mb-4">Recent User Activity</h2>
             <div className="space-y-4">
               {analytics &&
-                analytics.recentActivity
-                  .slice(0, 5)
-                  .map((activity: any, idx: number) => (
-                    <div key={idx} className="flex">
-                      <div className="mr-4 flex-shrink-0">
-                        <div className="h-8 w-8 rounded-full bg-indigo-100 flex items-center justify-center">
-                          {activity.type === "login" && (
-                            <User size={16} className="text-indigo-600" />
-                          )}
-                          {activity.type === "assessment" && (
-                            <FileText size={16} className="text-indigo-600" />
-                          )}
-                          {activity.type === "chat" && (
-                            <MessageSquare
-                              size={16}
-                              className="text-indigo-600"
-                            />
-                          )}
-                          {activity.type === "mood" && (
-                            <TrendingUp size={16} className="text-indigo-600" />
-                          )}
-                        </div>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium">{activity.user}</p>
-                        <p className="text-sm text-gray-500">
-                          {activity.action}
-                        </p>
-                        <p className="text-xs text-gray-400 mt-1">
-                          {activity.time}
-                        </p>
+                analytics.recentActivity.slice(0, 5).map((activity, idx) => (
+                  <div key={idx} className="flex">
+                    <div className="mr-4 flex-shrink-0">
+                      <div className="h-8 w-8 rounded-full bg-indigo-100 flex items-center justify-center">
+                        {activity.type === "login" && (
+                          <User size={16} className="text-indigo-600" />
+                        )}
+                        {activity.type === "assessment" && (
+                          <FileText size={16} className="text-indigo-600" />
+                        )}
+                        {activity.type === "chat" && (
+                          <MessageSquare
+                            size={16}
+                            className="text-indigo-600"
+                          />
+                        )}
+                        {activity.type === "mood" && (
+                          <TrendingUp size={16} className="text-indigo-600" />
+                        )}
                       </div>
                     </div>
-                  ))}
+                    <div>
+                      <p className="text-sm font-medium">{activity.user}</p>
+                      <p className="text-sm text-gray-500">{activity.action}</p>
+                      <p className="text-xs text-gray-400 mt-1">
+                        {activity.time}
+                      </p>
+                    </div>
+                  </div>
+                ))}
             </div>
             <div className="mt-4">
               <button className="text-sm text-indigo-600 hover:text-indigo-500 font-medium">
@@ -1137,7 +1381,7 @@ const DashboardContent: React.FC<{
             <h2 className="text-lg font-medium mb-4">User Mood Distribution</h2>
             <div className="space-y-3">
               {analytics &&
-                analytics.moodDistribution.map((mood: any, idx: number) => (
+                analytics.moodDistribution.map((mood, idx) => (
                   <div key={idx}>
                     <div className="flex justify-between items-center mb-1">
                       <span className="text-sm font-medium text-gray-700">
@@ -1194,10 +1438,7 @@ const DashboardContent: React.FC<{
   );
 };
 
-const UsersContent: React.FC<{
-  users: any[];
-  onUserSelect: (user: any) => void;
-}> = ({ users, onUserSelect }) => {
+const UsersContent: React.FC<UsersContentProps> = ({ users, onUserSelect }) => {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -1336,10 +1577,10 @@ const UsersContent: React.FC<{
   );
 };
 
-const AlertsContent: React.FC<{
-  alerts: any[];
-  onAlertSelect: (alert: any) => void;
-}> = ({ alerts, onAlertSelect }) => {
+const AlertsContent: React.FC<AlertsContentProps> = ({
+  alerts,
+  onAlertSelect,
+}) => {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -1504,7 +1745,7 @@ const AlertsContent: React.FC<{
             <button className="px-3 py-1 bg-white border border-gray-300 rounded-md text-sm hover:bg-gray-50">
               Previous
             </button>
-            <button className="px-3 py-1 bg-indigo-600 text-white border border-indigo-600 rounded-md text-sm hover:bg-indigo-50">
+            <button className="px-3 py-1 bg-indigo-600 text-white border border-indigo-600 rounded-md text-sm hover:bg-gray-50">
               1
             </button>
             <button className="px-3 py-1 bg-white border border-gray-300 rounded-md text-sm hover:bg-gray-50">
@@ -1520,10 +1761,10 @@ const AlertsContent: React.FC<{
   );
 };
 
-const ProfessionalsContent: React.FC<{
-  professionals: any[];
-  onProfessionalSelect: (professional: any) => void;
-}> = ({ professionals, onProfessionalSelect }) => {
+const ProfessionalsContent: React.FC<ProfessionalsContentProps> = ({
+  professionals,
+  onProfessionalSelect,
+}) => {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -1731,7 +1972,7 @@ const ContentManagementContent: React.FC = () => {
   );
 };
 
-const AnalyticsContent: React.FC<{ analytics: any }> = ({ analytics }) => {
+const AnalyticsContent: React.FC<AnalyticsContentProps> = ({ analytics }) => {
   return (
     <div className="space-y-6">
       <h2 className="text-lg font-medium">Analytics & Reports</h2>

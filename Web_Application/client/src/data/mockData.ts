@@ -54,7 +54,8 @@ export const mockPatients: Patient[] = [
     riskLevel: "high",
     sentimentScore: -0.8,
     lastMessage: "I don't think I can handle this anymore...",
-    profilePic: "/api/placeholder/40/40",
+    profilePic:
+      "https://www.sliit.lk/profile/uploads/Mr__Pramuditha_Coomasaru_21.jpg",
   },
   {
     id: "2",
@@ -65,7 +66,8 @@ export const mockPatients: Patient[] = [
     riskLevel: "medium",
     sentimentScore: -0.4,
     lastMessage: "The therapy techniques helped a bit today",
-    profilePic: "/api/placeholder/40/40",
+    profilePic:
+      "https://i.pinimg.com/280x280_RS/23/fb/52/23fb52389aeee3b345bf790120163425.jpg",
   },
   {
     id: "3",
@@ -76,7 +78,7 @@ export const mockPatients: Patient[] = [
     riskLevel: "low",
     sentimentScore: 0.2,
     lastMessage: "I practiced the breathing exercises",
-    profilePic: "/api/placeholder/40/40",
+    profilePic: "https://www.gla.ac.in/images/shubham-saraswat.jpg",
   },
   {
     id: "4",
@@ -87,7 +89,8 @@ export const mockPatients: Patient[] = [
     riskLevel: "high",
     sentimentScore: -0.7,
     lastMessage: "Everything feels pointless lately",
-    profilePic: "/api/placeholder/40/40",
+    profilePic:
+      "https://theuniquetravel.co.uk/wp-content/uploads/2019/04/3.jpg",
   },
   {
     id: "5",
@@ -98,7 +101,8 @@ export const mockPatients: Patient[] = [
     riskLevel: "medium",
     sentimentScore: -0.3,
     lastMessage: "Work stress is affecting my sleep again",
-    profilePic: "/api/placeholder/40/40",
+    profilePic:
+      "https://nearyou.imeche.org/images/default-source/srilanka/Rem-Pas-Pic/passport-size.jpg?sfvrsn=0",
   },
 ];
 

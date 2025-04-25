@@ -27,13 +27,14 @@ import {
 } from "react-icons/fa";
 import Footer from "../components/Footer";
 import Navbar from "../components/Navbar"; // Make sure the path is correct
+import profileImage from "../assets/profile.jpeg";
 
 // Sample data (in a real app, this would come from your API)
 const SAMPLE_USER = {
   name: "Gagana Methmal",
   email: "gaganam220@gmail.com",
   joinDate: "2025-02-23",
-  profileImage: "/assets/drake.jpeg", // Path to assets folder in project directory
+  profileImage: profileImage, // Local image path in public folder
   location: "Colombo, Sri Lanka",
   therapistName: "Dr. Nirmala Silva",
   nextAppointment: "2025-03-07T14:30:00",
@@ -248,12 +249,12 @@ const MyProfile: React.FC = () => {
       <div className="flex flex-col md:flex-row items-start md:items-center">
         <div className="relative mb-6 md:mb-0 md:mr-6 group">
           <a
-            href="https://scontent.fcmb2-2.fna.fbcdn.net/v/t39.30808-6/471677757_1132452808252329_3992846703285013554_n.jpg?_nc_cat=1&ccb=1-7&_nc_sid=6ee11a&_nc_ohc=ztZLYtME4zcQ7kNvgF_MtFR&_nc_oc=AdnsaB1SGSbtf8Ox6mQv46nmYHhm6rYnbUPKhV8gCKDE_BBVCwY9NGbReGj7NRtEsxDjVGrdzQvPB7rdNg_WMVrc&_nc_zt=23&_nc_ht=scontent.fcmb2-2.fna&_nc_gid=6c5oHNLw0hBYaxCfSgrlRg&oh=00_AYGNZMIz9cFakRKEj9vxRl1d59aazf89MF1XoZvo1WVyFA&oe=67E9716B"
+            href={profileData.profileImage.toString()}
             target="_blank"
             rel="noopener noreferrer"
           >
             <img
-              src="https://scontent.fcmb2-2.fna.fbcdn.net/v/t39.30808-6/471677757_1132452808252329_3992846703285013554_n.jpg?_nc_cat=1&ccb=1-7&_nc_sid=6ee11a&_nc_ohc=ztZLYtME4zcQ7kNvgF_MtFR&_nc_oc=AdnsaB1SGSbtf8Ox6mQv46nmYHhm6rYnbUPKhV8gCKDE_BBVCwY9NGbReGj7NRtEsxDjVGrdzQvPB7rdNg_WMVrc&_nc_zt=23&_nc_ht=scontent.fcmb2-2.fna&_nc_gid=6c5oHNLw0hBYaxCfSgrlRg&oh=00_AYGNZMIz9cFakRKEj9vxRl1d59aazf89MF1XoZvo1WVyFA&oe=67E9716B"
+              src={profileData.profileImage.toString()}
               alt="Profile"
               className="w-24 h-24 rounded-full object-cover border-4 border-blue-100 transition-all duration-300 group-hover:border-blue-300"
             />

@@ -208,13 +208,13 @@ const Footer: FC = () => {
               </h2>
               <ul className="text-gray-500 dark:text-gray-400 font-medium">
                 <li className="mb-4">
-                  <a href="/mood-tracker" className="hover:underline">
-                    Mood Tracker
+                  <a href="/doctorlogin" className="hover:underline">
+                    Doctor Login
                   </a>
                 </li>
                 <li className="mb-4">
-                  <a href="/journal" className="hover:underline">
-                    Digital Journal
+                  <a href="/adminlogin" className="hover:underline">
+                    Admin Login
                   </a>
                 </li>
                 <li>
