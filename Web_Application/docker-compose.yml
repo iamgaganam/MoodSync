@@ -1,4 +1,7 @@
+version: "3.8"
+
 services:
+  # Frontend application
   client:
     build:
       context: ./client
@@ -11,11 +14,12 @@ services:
       - ./client:/app
       - /app/node_modules
     environment:
-      - NODE_ENV=development
-      - REACT_APP_API_URL=http://localhost:8000
+      NODE_ENV: development
+      REACT_APP_API_URL: http://localhost:8000
     networks:
       - app-network
 
+  # Backend API service
   server:
     build:
       context: ./server
@@ -26,13 +30,14 @@ services:
       - ./server:/app
       - ./server/data:/app/data
     environment:
-      - MONGODB_URI=${MONGODB_URI}
-      - JWT_SECRET=${JWT_SECRET}
-      - ALGORITHM=${ALGORITHM}
-      - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES}
+      MONGODB_URI: ${MONGODB_URI}
+      JWT_SECRET: ${JWT_SECRET}
+      ALGORITHM: ${ALGORITHM}
+      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES}
     networks:
       - app-network
 
+# Network configuration
 networks:
   app-network:
     driver: bridge

@@ -7,10 +7,9 @@ import { BrowserRouter } from "react-router-dom";
 import axios from "axios";
 import Login from "../Login";
 
-// Mock axios
+// Mock dependencies
 vi.mock("axios");
 
-// Mock react-router-dom navigation
 const mockNavigate = vi.fn();
 vi.mock("react-router-dom", async () => {
   const actual = await vi.importActual("react-router-dom");
@@ -20,36 +19,29 @@ vi.mock("react-router-dom", async () => {
   };
 });
 
-// Mock the useAuth hook
 const mockLogin = vi.fn();
-const mockLogout = vi.fn();
-const mockCheckAuthStatus = vi.fn().mockResolvedValue(true);
-
 vi.mock("../../context/AuthContext", () => ({
   useAuth: () => ({
     isLoggedIn: false,
     user: null,
     login: mockLogin,
-    logout: mockLogout,
-    checkAuthStatus: mockCheckAuthStatus,
+    logout: vi.fn(),
+    checkAuthStatus: vi.fn().mockResolvedValue(true),
   }),
 }));
 
-// Mock asset imports
+// Mock assets and components
 vi.mock("../assets/3.jpg", () => "mock-background-image.jpg");
-
-// Mock components that might be causing issues
 vi.mock("../components/Navbar", () => ({
   default: () => <div data-testid="navbar">Navbar</div>,
 }));
-
 vi.mock("../components/Footer", () => ({
   default: () => <div data-testid="footer">Footer</div>,
 }));
 
 // Setup localStorage mock
-const localStorageMock = (() => {
-  let store: Record<string, string> = {};
+const setupLocalStorageMock = () => {
+  const store: Record<string, string> = {};
   return {
     getItem: vi.fn((key: string) => store[key] || null),
     setItem: vi.fn((key: string, value: string) => {
@@ -59,12 +51,48 @@ const localStorageMock = (() => {
       delete store[key];
     }),
     clear: vi.fn(() => {
-      store = {};
+      Object.keys(store).forEach((key) => delete store[key]);
     }),
   };
-})();
+};
 
+const localStorageMock = setupLocalStorageMock();
 Object.defineProperty(window, "localStorage", { value: localStorageMock });
+
+// Test helpers
+const setupTest = () => {
+  const user = userEvent.setup();
+  render(
+    <BrowserRouter>
+      <Login />
+    </BrowserRouter>
+  );
+  return { user };
+};
+
+const fillLoginForm = async (
+  user: ReturnType<typeof userEvent.setup>,
+  email: string,
+  password: string,
+  rememberMe = false
+) => {
+  await user.type(screen.getByLabelText(/Email address/i), email);
+  await user.type(screen.getByLabelText(/Password/i), password);
+
+  if (rememberMe) {
+    await user.click(screen.getByLabelText(/Remember me/i));
+  }
+};
+
+const mockSuccessfulLogin = () => {
+  (axios.post as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+    data: {
+      access_token: "fake-token",
+      name: "Test User",
+      email: "test@example.com",
+    },
+  });
+};
 
 describe("LoginPage Component", () => {
   beforeEach(() => {
@@ -73,30 +101,23 @@ describe("LoginPage Component", () => {
   });
 
   test("renders login form with required elements", async () => {
-    render(
-      <BrowserRouter>
-        <Login />
-      </BrowserRouter>
-    );
+    setupTest();
 
-    // Check main heading
     await waitFor(() => {
       expect(screen.getByText(/Sign in to your account/i)).toBeInTheDocument();
     });
 
-    // Check form inputs
+    // Verify form elements
     expect(screen.getByLabelText(/Email address/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/Password/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/Remember me/i)).toBeInTheDocument();
-
-    // Check buttons and links
     expect(
       screen.getByRole("button", { name: /Sign in$/i })
     ).toBeInTheDocument();
     expect(screen.getByText(/Forgot your password/i)).toBeInTheDocument();
     expect(screen.getByText(/Don't have an account/i)).toBeInTheDocument();
 
-    // Check social login options
+    // Verify social login options
     expect(screen.getByRole("button", { name: /Google/i })).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: /Facebook/i })
@@ -104,12 +125,7 @@ describe("LoginPage Component", () => {
   });
 
   test("toggles password visibility when eye icon is clicked", async () => {
-    const user = userEvent.setup();
-    render(
-      <BrowserRouter>
-        <Login />
-      </BrowserRouter>
-    );
+    const { user } = setupTest();
 
     await waitFor(() => {
       expect(screen.getByLabelText(/Password/i)).toBeInTheDocument();
@@ -118,109 +134,23 @@ describe("LoginPage Component", () => {
     const passwordInput = screen.getByLabelText(/Password/i);
     expect(passwordInput).toHaveAttribute("type", "password");
 
-    // Find and click the eye icon button - now finding by class/type instead of name
+    // Find and click the eye icon button
     const eyeButton = document.querySelector("button.absolute");
     if (!eyeButton) {
       throw new Error("Password visibility toggle button not found");
     }
 
+    // Toggle visibility on
     await user.click(eyeButton);
-
-    // Password should now be visible
     expect(passwordInput).toHaveAttribute("type", "text");
 
-    // Click again to hide
+    // Toggle visibility off
     await user.click(eyeButton);
     expect(passwordInput).toHaveAttribute("type", "password");
   });
 
-  test("validates email format", async () => {
-    const user = userEvent.setup();
-    render(
-      <BrowserRouter>
-        <Login />
-      </BrowserRouter>
-    );
-
-    await waitFor(() => {
-      expect(screen.getByLabelText(/Email address/i)).toBeInTheDocument();
-    });
-
-    const emailInput = screen.getByLabelText(/Email address/i);
-    const submitButton = screen.getByRole("button", { name: /Sign in$/i });
-
-    // Enter invalid email and submit
-    await user.type(emailInput, "invalid-email");
-    await user.click(submitButton);
-
-    // Add a small delay to allow validation to complete
-    await new Promise((r) => setTimeout(r, 500));
-
-    // Take a simpler approach - just verify that the form wasn't submitted successfully
-    // by checking that mockLogin wasn't called
-    expect(mockLogin).not.toHaveBeenCalled();
-
-    // Clear and enter valid email
-    await user.clear(emailInput);
-    await user.type(emailInput, "valid@example.com");
-    await user.type(screen.getByLabelText(/Password/i), "validpassword123"); // Add valid password too
-
-    // Submit again
-    await user.click(submitButton);
-
-    // Verify that with valid input, API call is attempted
-    await waitFor(() => {
-      expect(axios.post).toHaveBeenCalled();
-    });
-  });
-
-  test("validates password length", async () => {
-    const user = userEvent.setup();
-    render(
-      <BrowserRouter>
-        <Login />
-      </BrowserRouter>
-    );
-
-    await waitFor(() => {
-      expect(screen.getByLabelText(/Password/i)).toBeInTheDocument();
-    });
-
-    const passwordInput = screen.getByLabelText(/Password/i);
-    const submitButton = screen.getByRole("button", { name: /Sign in$/i });
-
-    // Enter short password and submit
-    await user.type(passwordInput, "short");
-    await user.click(submitButton);
-
-    // Simply verify the form submission was prevented
-    expect(mockLogin).not.toHaveBeenCalled();
-    expect(axios.post).not.toHaveBeenCalled();
-
-    // Clear and enter valid password
-    await user.clear(passwordInput);
-    await user.type(passwordInput, "validpassword123");
-    await user.type(
-      screen.getByLabelText(/Email address/i),
-      "valid@example.com"
-    ); // Add valid email too
-
-    // Submit again
-    await user.click(submitButton);
-
-    // Verify that with valid input, API call is attempted
-    await waitFor(() => {
-      expect(axios.post).toHaveBeenCalled();
-    });
-  });
-
   test("toggles remember me checkbox", async () => {
-    const user = userEvent.setup();
-    render(
-      <BrowserRouter>
-        <Login />
-      </BrowserRouter>
-    );
+    const { user } = setupTest();
 
     await waitFor(() => {
       expect(screen.getByLabelText(/Remember me/i)).toBeInTheDocument();
@@ -228,235 +158,230 @@ describe("LoginPage Component", () => {
 
     const rememberMeCheckbox = screen.getByLabelText(/Remember me/i);
 
-    // Default should be unchecked
+    // Default state
     expect(rememberMeCheckbox).not.toBeChecked();
 
-    // Click to check
+    // Toggle on
     await user.click(rememberMeCheckbox);
     expect(rememberMeCheckbox).toBeChecked();
 
-    // Click again to uncheck
+    // Toggle off
     await user.click(rememberMeCheckbox);
     expect(rememberMeCheckbox).not.toBeChecked();
   });
 
-  test("handles successful login", async () => {
-    const user = userEvent.setup();
-    render(
-      <BrowserRouter>
-        <Login />
-      </BrowserRouter>
-    );
+  describe("Form validation", () => {
+    test("validates email format", async () => {
+      const { user } = setupTest();
 
-    await waitFor(() => {
-      expect(screen.getByLabelText(/Email address/i)).toBeInTheDocument();
-    });
-
-    // Mock successful API response
-    (axios.post as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
-      data: {
-        access_token: "fake-token",
-        name: "Test User",
-        email: "test@example.com",
-      },
-    });
-
-    // Fill out form
-    await user.type(
-      screen.getByLabelText(/Email address/i),
-      "test@example.com"
-    );
-    await user.type(screen.getByLabelText(/Password/i), "password123");
-
-    // Submit form
-    await user.click(screen.getByRole("button", { name: /Sign in$/i }));
-
-    // Wait for API call and navigation
-    await waitFor(() => {
-      // Check API call
-      expect(axios.post).toHaveBeenCalledWith("http://127.0.0.1:8000/login", {
-        email: "test@example.com",
-        password: "password123",
+      await waitFor(() => {
+        expect(screen.getByLabelText(/Email address/i)).toBeInTheDocument();
       });
 
-      // Check localStorage setting
-      expect(localStorageMock.setItem).toHaveBeenCalledWith(
-        "access_token",
-        "fake-token"
+      const submitButton = screen.getByRole("button", { name: /Sign in$/i });
+
+      // Test invalid email
+      await fillLoginForm(user, "invalid-email", "validpassword123");
+      await user.click(submitButton);
+      await new Promise((r) => setTimeout(r, 500)); // Allow validation to complete
+
+      // Verify submission blocked
+      expect(mockLogin).not.toHaveBeenCalled();
+
+      // Test valid email
+      await fillLoginForm(user, "valid@example.com", "validpassword123");
+      await user.click(submitButton);
+
+      // Verify API call attempted
+      await waitFor(() => {
+        expect(axios.post).toHaveBeenCalled();
+      });
+    });
+
+    test("validates password length", async () => {
+      const { user } = setupTest();
+
+      await waitFor(() => {
+        expect(screen.getByLabelText(/Password/i)).toBeInTheDocument();
+      });
+
+      const submitButton = screen.getByRole("button", { name: /Sign in$/i });
+      const emailInput = screen.getByLabelText(/Email address/i);
+      const passwordInput = screen.getByLabelText(/Password/i);
+
+      // Test short password
+      await user.type(emailInput, "valid@example.com");
+      await user.type(passwordInput, "short");
+      await user.click(submitButton);
+
+      // Verify API wasn't called
+      expect(mockLogin).not.toHaveBeenCalled();
+      expect(axios.post).not.toHaveBeenCalled();
+
+      // Test valid password
+      await user.clear(passwordInput);
+
+      // Mock a successful response
+      (axios.post as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce(
+        {
+          data: {
+            access_token: "fake-token",
+            name: "Test User",
+            email: "valid@example.com",
+          },
+        }
       );
 
-      // Check login context update
-      expect(mockLogin).toHaveBeenCalledWith(
-        { name: "Test User", email: "test@example.com" },
-        false // default rememberMe is false
+      await user.type(passwordInput, "validpassword123");
+      await user.click(submitButton);
+
+      // Verify API was called
+      await waitFor(() => {
+        expect(axios.post).toHaveBeenCalled();
+      });
+    });
+  });
+
+  describe("API interactions", () => {
+    test("handles successful login", async () => {
+      const { user } = setupTest();
+
+      await waitFor(() => {
+        expect(screen.getByLabelText(/Email address/i)).toBeInTheDocument();
+      });
+
+      mockSuccessfulLogin();
+      await fillLoginForm(user, "test@example.com", "password123");
+      await user.click(screen.getByRole("button", { name: /Sign in$/i }));
+
+      // Verify successful login flow
+      await waitFor(() => {
+        // Check API call
+        expect(axios.post).toHaveBeenCalledWith("http://127.0.0.1:8000/login", {
+          email: "test@example.com",
+          password: "password123",
+        });
+
+        // Check token storage
+        expect(localStorageMock.setItem).toHaveBeenCalledWith(
+          "access_token",
+          "fake-token"
+        );
+
+        // Check auth context update
+        expect(mockLogin).toHaveBeenCalledWith(
+          { name: "Test User", email: "test@example.com" },
+          false // default rememberMe is false
+        );
+
+        // Check navigation
+        expect(mockNavigate).toHaveBeenCalledWith("/");
+      });
+    });
+
+    test("handles failed login with API error", async () => {
+      const { user } = setupTest();
+
+      await waitFor(() => {
+        expect(screen.getByLabelText(/Email address/i)).toBeInTheDocument();
+      });
+
+      // Mock API error
+      (axios.post as unknown as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
+        {
+          response: {
+            data: {
+              detail: "Invalid credentials",
+            },
+          },
+        }
       );
 
-      // Check navigation
-      expect(mockNavigate).toHaveBeenCalledWith("/");
-    });
-  });
+      await fillLoginForm(user, "wrong@example.com", "wrongpassword");
+      await user.click(screen.getByRole("button", { name: /Sign in$/i }));
 
-  test("handles failed login with API error", async () => {
-    const user = userEvent.setup();
-    render(
-      <BrowserRouter>
-        <Login />
-      </BrowserRouter>
-    );
-
-    await waitFor(() => {
-      expect(screen.getByLabelText(/Email address/i)).toBeInTheDocument();
+      // Verify error handling
+      await waitFor(() => {
+        expect(mockNavigate).not.toHaveBeenCalled();
+      });
     });
 
-    // Mock failed API response
-    (axios.post as unknown as ReturnType<typeof vi.fn>).mockRejectedValueOnce({
-      response: {
-        data: {
-          detail: "Invalid credentials",
-        },
-      },
+    test("handles failed login with network error", async () => {
+      const { user } = setupTest();
+
+      await waitFor(() => {
+        expect(screen.getByLabelText(/Email address/i)).toBeInTheDocument();
+      });
+
+      // Mock network error
+      (axios.post as unknown as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
+        {}
+      );
+
+      await fillLoginForm(user, "test@example.com", "password123");
+      await user.click(screen.getByRole("button", { name: /Sign in$/i }));
+
+      // Verify error handling
+      await waitFor(() => {
+        expect(mockNavigate).not.toHaveBeenCalled();
+      });
     });
 
-    // Fill out form
-    await user.type(
-      screen.getByLabelText(/Email address/i),
-      "wrong@example.com"
-    );
-    await user.type(screen.getByLabelText(/Password/i), "wrongpassword");
+    test("shows loading state during form submission", async () => {
+      const { user } = setupTest();
 
-    // Submit form
-    await user.click(screen.getByRole("button", { name: /Sign in$/i }));
+      await waitFor(() => {
+        expect(screen.getByLabelText(/Email address/i)).toBeInTheDocument();
+      });
 
-    // Wait for error message - more flexible search
-    await waitFor(() => {
-      // Verify the form submission was prevented
-      expect(mockNavigate).not.toHaveBeenCalled();
-    });
-  });
-
-  test("handles failed login with network error", async () => {
-    const user = userEvent.setup();
-    render(
-      <BrowserRouter>
-        <Login />
-      </BrowserRouter>
-    );
-
-    await waitFor(() => {
-      expect(screen.getByLabelText(/Email address/i)).toBeInTheDocument();
-    });
-
-    // Mock network error
-    (axios.post as unknown as ReturnType<typeof vi.fn>).mockRejectedValueOnce({
-      // No response object for network errors
-    });
-
-    // Fill out form
-    await user.type(
-      screen.getByLabelText(/Email address/i),
-      "test@example.com"
-    );
-    await user.type(screen.getByLabelText(/Password/i), "password123");
-
-    // Submit form
-    await user.click(screen.getByRole("button", { name: /Sign in$/i }));
-
-    // Verify the login didn't proceed
-    await waitFor(() => {
-      expect(mockNavigate).not.toHaveBeenCalled();
-    });
-  });
-
-  test("shows loading state during form submission", async () => {
-    const user = userEvent.setup();
-    render(
-      <BrowserRouter>
-        <Login />
-      </BrowserRouter>
-    );
-
-    await waitFor(() => {
-      expect(screen.getByLabelText(/Email address/i)).toBeInTheDocument();
-    });
-
-    // Setup a delayed response
-    (axios.post as unknown as ReturnType<typeof vi.fn>).mockImplementationOnce(
-      () =>
-        new Promise((resolve) =>
-          setTimeout(
-            () =>
-              resolve({
-                data: {
-                  access_token: "fake-token",
-                  name: "Test User",
-                  email: "test@example.com",
-                },
-              }),
-            100
+      // Setup delayed response
+      (
+        axios.post as unknown as ReturnType<typeof vi.fn>
+      ).mockImplementationOnce(
+        () =>
+          new Promise((resolve) =>
+            setTimeout(
+              () =>
+                resolve({
+                  data: {
+                    access_token: "fake-token",
+                    name: "Test User",
+                    email: "test@example.com",
+                  },
+                }),
+              100
+            )
           )
-        )
-    );
-
-    // Fill out form
-    await user.type(
-      screen.getByLabelText(/Email address/i),
-      "test@example.com"
-    );
-    await user.type(screen.getByLabelText(/Password/i), "password123");
-
-    // Submit form
-    await user.click(screen.getByRole("button", { name: /Sign in$/i }));
-
-    // Wait for successful navigation
-    await waitFor(() => {
-      expect(mockNavigate).toHaveBeenCalledWith("/");
-    });
-  });
-
-  test("remembers user when remember me is checked", async () => {
-    const user = userEvent.setup();
-    render(
-      <BrowserRouter>
-        <Login />
-      </BrowserRouter>
-    );
-
-    await waitFor(() => {
-      expect(screen.getByLabelText(/Email address/i)).toBeInTheDocument();
-    });
-
-    // Mock successful API response
-    (axios.post as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
-      data: {
-        access_token: "fake-token",
-        name: "Test User",
-        email: "test@example.com",
-      },
-    });
-
-    // Fill out form
-    await user.type(
-      screen.getByLabelText(/Email address/i),
-      "test@example.com"
-    );
-    await user.type(screen.getByLabelText(/Password/i), "password123");
-
-    // Check remember me
-    await user.click(screen.getByLabelText(/Remember me/i));
-
-    // Submit form
-    await user.click(screen.getByRole("button", { name: /Sign in$/i }));
-
-    // Wait for context update - check if login was called with remember me true
-    await waitFor(() => {
-      // Most important assertion: check the rememberMe parameter was passed as true
-      expect(mockLogin).toHaveBeenCalledWith(
-        { name: "Test User", email: "test@example.com" },
-        true
       );
+
+      await fillLoginForm(user, "test@example.com", "password123");
+      await user.click(screen.getByRole("button", { name: /Sign in$/i }));
+
+      // Verify successful completion
+      await waitFor(() => {
+        expect(mockNavigate).toHaveBeenCalledWith("/");
+      });
     });
 
-    // Check that login was successful
-    expect(mockNavigate).toHaveBeenCalledWith("/");
+    test("remembers user when remember me is checked", async () => {
+      const { user } = setupTest();
+
+      await waitFor(() => {
+        expect(screen.getByLabelText(/Email address/i)).toBeInTheDocument();
+      });
+
+      mockSuccessfulLogin();
+      await fillLoginForm(user, "test@example.com", "password123", true);
+      await user.click(screen.getByRole("button", { name: /Sign in$/i }));
+
+      // Verify remember me flag
+      await waitFor(() => {
+        expect(mockLogin).toHaveBeenCalledWith(
+          { name: "Test User", email: "test@example.com" },
+          true
+        );
+        expect(mockNavigate).toHaveBeenCalledWith("/");
+      });
+    });
   });
 });

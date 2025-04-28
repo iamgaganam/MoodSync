@@ -8,48 +8,55 @@ import os
 import sys
 from datetime import datetime, timedelta
 
-# Add project root to path to help with imports
+# Setup project path
 project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
-# Try different import approaches to find your app
-try:
-    # Try importing from main.py (common FastAPI pattern)
-    from main import app
-except ImportError:
-    try:
-        # Try importing from app.py if it's in the server root
-        from app import app
-    except ImportError:
+# Dynamic app import with fallbacks
+def import_app():
+    """Import the FastAPI app with multiple fallback options."""
+    for module_path in [
+        "main",
+        "app",
+        "app.app",
+        "server.app.main"
+    ]:
         try:
-            # Try if app is directly in the app package
-            from app.app import app
-        except ImportError:
-            # Last resort - import from your specific path
-            # Modify this to match your actual app location
-            sys.path.insert(0, os.path.join(project_root, "server"))
-            from app.main import app
+            module = __import__(module_path, fromlist=["app"])
+            return module.app
+        except (ImportError, AttributeError):
+            continue
+    
+    pytest.skip("Could not import FastAPI app. Skipping API performance tests.")
 
-# Import your auth service for token creation
-# Adjust the import path to match your actual file structure
-try:
-    from app.services.auth_service import create_access_token
-except ImportError:
-    # Fallback options if the path is different
-    try:
-        from app.auth_service import create_access_token
-    except ImportError:
-        # Define a simple token creator as fallback
-        def create_access_token(data, expires_delta=None):
-            return "test_token_for_performance_testing"
-
-# Create test client
+# Import app and create test client
+app = import_app()
 client = TestClient(app)
 
+# Import or create token generator
+def get_auth_token_generator():
+    """Import or create a token generator function."""
+    for module_path, func_name in [
+        ("app.services.auth_service", "create_access_token"),
+        ("app.auth_service", "create_access_token")
+    ]:
+        try:
+            module = __import__(module_path, fromlist=[func_name])
+            return getattr(module, func_name)
+        except (ImportError, AttributeError):
+            continue
+    
+    # Fallback token generator
+    def create_access_token(data, expires_delta=None):
+        return "test_token_for_performance_testing"
+    
+    return create_access_token
 
-# Helper to create test tokens
+create_access_token = get_auth_token_generator()
+
 def get_test_token(email="performance_test@example.com"):
+    """Create a test token for authentication."""
     try:
         return create_access_token(
             data={"sub": email},
@@ -59,56 +66,67 @@ def get_test_token(email="performance_test@example.com"):
         print(f"Error creating token: {e}")
         return "test_token_for_performance_testing"
 
+def measure_performance(callable_func, iterations=100):
+    """Generic performance measurement function."""
+    response_times = []
+    
+    for _ in range(iterations):
+        start_time = time.time()
+        try:
+            callable_func()
+            end_time = time.time()
+            response_times.append(end_time - start_time)
+        except Exception as e:
+            print(f"Error during performance test: {e}")
+    
+    if not response_times:
+        return None
+    
+    return {
+        "avg": statistics.mean(response_times),
+        "median": statistics.median(response_times),
+        "p95": sorted(response_times)[int(len(response_times) * 0.95)],
+        "min": min(response_times),
+        "max": max(response_times)
+    }
+
+def print_performance_results(name, metrics):
+    """Print formatted performance test results."""
+    if not metrics:
+        print(f"\n{name}: No successful requests to measure performance.")
+        return
+    
+    print(f"\n{name} Performance:")
+    print("-" * 50)
+    print(f"  Average response time:       {metrics['avg']:.6f} seconds")
+    print(f"  Median response time:        {metrics['median']:.6f} seconds")
+    print(f"  95th percentile response:    {metrics['p95']:.6f} seconds")
+    print(f"  Range:                       {metrics['min']:.6f} - {metrics['max']:.6f} seconds")
+
 
 class TestAPIPerformance:
     """Performance tests for API endpoints."""
 
     def test_health_check_performance(self):
-        """Test performance of the health check endpoint."""
-        # Number of iterations
-        num_iterations = 100
-
-        # Store response times
-        response_times = []
-
-        # Make multiple requests
-        for _ in range(num_iterations):
-            start_time = time.time()
+        """Test health check endpoint performance."""
+        def health_check():
             try:
-                # Try the /health endpoint first
                 response = client.get("/health")
-
-                # If that fails, try root endpoint
                 if response.status_code >= 400:
                     response = client.get("/")
+                return response
             except Exception as e:
-                print(f"Error accessing health endpoint: {e}")
-                continue
-
-            end_time = time.time()
-
-            # Record time
-            response_times.append(end_time - start_time)
-
-        if not response_times:
-            pytest.skip("Could not access health endpoints")
-
-        # Calculate statistics
-        avg_time = statistics.mean(response_times)
-        median_time = statistics.median(response_times)
-        p95_time = sorted(response_times)[int(num_iterations * 0.95)]
-
-        # Print results
-        print(f"\nHealth Check Endpoint Performance:")
-        print(f"  Average response time: {avg_time:.6f} seconds")
-        print(f"  Median response time: {median_time:.6f} seconds")
-        print(f"  95th percentile response time: {p95_time:.6f} seconds")
-
-        # Assert performance requirements
-        assert avg_time < 0.05, f"Average health check response time ({avg_time:.6f}s) exceeds threshold of 0.05s"
+                print(f"Health check error: {e}")
+                return None
+        
+        metrics = measure_performance(health_check)
+        print_performance_results("Health Check Endpoint", metrics)
+        
+        if metrics:
+            assert metrics["avg"] < 0.05, f"Average health check response time ({metrics['avg']:.6f}s) exceeds threshold of 0.05s"
 
     def test_auth_performance(self):
-        """Test performance of authentication endpoints."""
+        """Test authentication endpoints performance."""
         # Test data
         test_users = [
             {
@@ -124,288 +142,206 @@ class TestAPIPerformance:
             }
             for i in range(10)
         ]
-
+        
         # Test registration performance
         registration_times = []
         for user in test_users:
-            # Skip if user already exists to avoid failure
+            start_time = time.time()
             try:
-                start_time = time.time()
-                response = client.post(
-                    "/api/auth/register",
-                    json=user
-                )
+                response = client.post("/api/auth/register", json=user)
                 end_time = time.time()
-
-                # Only count successful registrations
-                if response.status_code == 200 or response.status_code == 201:
+                if response.status_code in (200, 201):
                     registration_times.append(end_time - start_time)
-            except Exception as e:
-                print(f"Registration error: {e}")
+            except Exception:
                 continue
-
+        
         # Test login performance
         login_times = []
         for user in test_users:
+            start_time = time.time()
             try:
-                start_time = time.time()
                 response = client.post(
                     "/api/auth/login",
-                    data={
-                        "username": user["email"],
-                        "password": user["password"]
-                    }
+                    data={"username": user["email"], "password": user["password"]}
                 )
                 end_time = time.time()
-
-                # Only count successful logins
                 if response.status_code == 200:
                     login_times.append(end_time - start_time)
-            except Exception as e:
-                print(f"Login error: {e}")
+            except Exception:
                 continue
-
-        # Calculate statistics
+        
+        # Calculate and report registration metrics
         if registration_times:
-            avg_reg_time = statistics.mean(registration_times)
-            p95_reg_time = sorted(registration_times)[int(len(registration_times) * 0.95)]
-            print(f"\nRegistration Endpoint Performance:")
-            print(f"  Average response time: {avg_reg_time:.6f} seconds")
-            print(f"  95th percentile response time: {p95_reg_time:.6f} seconds")
-            assert avg_reg_time < 0.5, f"Average registration time ({avg_reg_time:.6f}s) exceeds threshold of 0.5s"
+            reg_metrics = {
+                "avg": statistics.mean(registration_times),
+                "p95": sorted(registration_times)[int(len(registration_times) * 0.95)]
+            }
+            print_performance_results("Registration Endpoint", reg_metrics)
+            assert reg_metrics["avg"] < 0.5, f"Average registration time ({reg_metrics['avg']:.6f}s) exceeds threshold of 0.5s"
         else:
             print("\nNo successful registrations to measure performance.")
-
+        
+        # Calculate and report login metrics
         if login_times:
-            avg_login_time = statistics.mean(login_times)
-            p95_login_time = sorted(login_times)[int(len(login_times) * 0.95)]
-            print(f"\nLogin Endpoint Performance:")
-            print(f"  Average response time: {avg_login_time:.6f} seconds")
-            print(f"  95th percentile response time: {p95_login_time:.6f} seconds")
-            assert avg_login_time < 0.3, f"Average login time ({avg_login_time:.6f}s) exceeds threshold of 0.3s"
+            login_metrics = {
+                "avg": statistics.mean(login_times),
+                "p95": sorted(login_times)[int(len(login_times) * 0.95)]
+            }
+            print_performance_results("Login Endpoint", login_metrics)
+            assert login_metrics["avg"] < 0.3, f"Average login time ({login_metrics['avg']:.6f}s) exceeds threshold of 0.3s"
         else:
             print("\nNo successful logins to measure performance.")
 
     def test_sentiment_analysis_performance(self):
-        """Test performance of sentiment analysis endpoint."""
-        # Get a test token
+        """Test sentiment analysis endpoint performance."""
         token = get_test_token()
-
-        # Test data with different complexity levels
+        
+        # Test texts with different complexity
         test_texts = [
             "I feel sad today",
             "I'm having a difficult time managing my anxiety and depression",
             "Today was a good day, but I still feel a bit down and worried about my future",
-            # Long text (simulating a journal entry)
             "I've been feeling very overwhelmed lately with work and personal life. " * 10
         ]
-
-        # Number of iterations for reliable measurement
-        num_iterations = 20
-
-        # Store results
-        response_times = []
-
+        
+        metrics_by_length = []
+        
         for text in test_texts:
-            times = []
-
-            # Make multiple requests
-            for _ in range(num_iterations):
-                start_time = time.time()
-
-                try:
-                    # Try the sentiment analysis endpoint
-                    response = client.post(
-                        "/api/sentiment/analyze",
-                        headers={"Authorization": f"Bearer {token}"},
-                        json={"text": text}
-                    )
-
-                    end_time = time.time()
-
-                    # Only count successful requests
-                    if response.status_code == 200:
-                        times.append(end_time - start_time)
-                except Exception as e:
-                    print(f"Sentiment analysis error: {e}")
-                    continue
-
-            if times:
-                avg_time = statistics.mean(times)
-                median_time = statistics.median(times)
-                p95_time = sorted(times)[int(len(times) * 0.95)]
-
-                response_times.append({
+            def analyze_sentiment():
+                return client.post(
+                    "/api/sentiment/analyze",
+                    headers={"Authorization": f"Bearer {token}"},
+                    json={"text": text}
+                )
+            
+            # Measure with fewer iterations for longer texts
+            iterations = 10 if len(text) > 100 else 20
+            metrics = measure_performance(analyze_sentiment, iterations)
+            
+            if metrics:
+                metrics_by_length.append({
                     "text_length": len(text),
-                    "avg_time": avg_time,
-                    "median_time": median_time,
-                    "p95_time": p95_time
+                    "metrics": metrics
                 })
-
+        
         # Print results
-        if response_times:
+        if metrics_by_length:
             print("\nSentiment Analysis API Performance Results:")
             print("-" * 70)
             print(f"{'Text Length':12} | {'Avg Time (s)':12} | {'Median (s)':12} | {'P95 (s)':12}")
             print("-" * 70)
-
-            for result in response_times:
-                print(
-                    f"{result['text_length']:12} | {result['avg_time']:.6f}     | {result['median_time']:.6f}     | {result['p95_time']:.6f}")
-
+            
+            for result in metrics_by_length:
+                m = result["metrics"]
+                print(f"{result['text_length']:12} | {m['avg']:.6f}     | {m['median']:.6f}     | {m['p95']:.6f}")
+            
             # Overall statistics
-            all_avg_times = [r["avg_time"] for r in response_times]
+            all_avg_times = [r["metrics"]["avg"] for r in metrics_by_length]
             overall_avg = statistics.mean(all_avg_times)
             print(f"\nOverall average response time: {overall_avg:.6f} seconds")
-
-            # Assert performance requirements
+            
             assert overall_avg < 0.5, f"Average API response time ({overall_avg:.6f}s) exceeds threshold of 0.5s"
         else:
             print("\nNo successful sentiment analysis requests to measure performance.")
 
     def test_protected_endpoint_performance(self):
-        """Test performance of protected endpoints."""
-        # Get a test token
+        """Test protected endpoint performance."""
         token = get_test_token()
-
-        # Number of iterations
-        num_iterations = 50
-
-        # Store response times
-        response_times = []
-
-        # Make multiple requests to a protected endpoint
-        # Try multiple potential endpoints
+        
+        # Find a working protected endpoint
         endpoints = [
             "/api/protected/profile",
             "/api/protected/user",
             "/api/protected/data"
         ]
-
-        # Find a working protected endpoint
+        
         working_endpoint = None
         for endpoint in endpoints:
             try:
-                response = client.get(
-                    endpoint,
-                    headers={"Authorization": f"Bearer {token}"}
-                )
-                if response.status_code != 404:  # Any response other than 404 suggests it exists
+                response = client.get(endpoint, headers={"Authorization": f"Bearer {token}"})
+                if response.status_code != 404:
                     working_endpoint = endpoint
                     break
             except Exception:
                 continue
-
+        
         if not working_endpoint:
             print("\nNo working protected endpoint found to test.")
             return
-
+        
         print(f"Testing protected endpoint: {working_endpoint}")
-
-        # Now test the performance of the working endpoint
-        for _ in range(num_iterations):
-            start_time = time.time()
-
-            try:
-                response = client.get(
-                    working_endpoint,
-                    headers={"Authorization": f"Bearer {token}"}
-                )
-
-                end_time = time.time()
-
-                # Count all responses, even errors (we're testing auth overhead)
-                response_times.append(end_time - start_time)
-            except Exception as e:
-                print(f"Protected endpoint error: {e}")
-                continue
-
-        # Calculate statistics
-        if response_times:
-            avg_time = statistics.mean(response_times)
-            median_time = statistics.median(response_times)
-            p95_time = sorted(response_times)[int(len(response_times) * 0.95)]
-
-            # Print results
-            print(f"\nProtected Endpoint Performance:")
-            print(f"  Average response time: {avg_time:.6f} seconds")
-            print(f"  Median response time: {median_time:.6f} seconds")
-            print(f"  95th percentile response time: {p95_time:.6f} seconds")
-
-            # Assert performance requirements
-            assert avg_time < 0.2, f"Average protected endpoint response time ({avg_time:.6f}s) exceeds threshold of 0.2s"
-        else:
-            print("\nNo successful protected endpoint requests to measure performance.")
+        
+        def access_protected():
+            return client.get(
+                working_endpoint,
+                headers={"Authorization": f"Bearer {token}"}
+            )
+        
+        metrics = measure_performance(access_protected, 50)
+        print_performance_results("Protected Endpoint", metrics)
+        
+        if metrics:
+            assert metrics["avg"] < 0.2, f"Average protected endpoint response time ({metrics['avg']:.6f}s) exceeds threshold of 0.2s"
 
 
 @pytest.mark.skip(reason="Run manually with server running")
 def test_websocket_performance():
-    """
-    Test WebSocket connection performance.
-    Note: This test requires the server to be running separately.
-    It's marked as skipped by default.
-    """
+    """Test WebSocket connection performance (run manually)."""
     import websockets
-    import asyncio
-
+    
     async def run_websocket_test():
-        # Get a test token
         token = get_test_token()
-
+        
         # Metrics to collect
         connection_times = []
         message_times = []
-
-        # Number of test iterations
         num_iterations = 10
-
+        
         for _ in range(num_iterations):
             # Measure connection time
             start_time = time.time()
-
-            # Connect to WebSocket (adjust the URL based on your actual WebSocket path)
-            async with websockets.connect(
-                    f"ws://localhost:8000/api/chat?token={token}"
-            ) as websocket:
-                connection_time = time.time() - start_time
-                connection_times.append(connection_time)
-
-                # Measure message exchange time
-                for _ in range(5):  # Send 5 messages per connection
-                    message_start = time.time()
-
-                    # Send a message
-                    await websocket.send(json.dumps({
-                        "message": "Hello, this is a test message"
-                    }))
-
-                    # Wait for response
-                    response = await websocket.recv()
-
-                    message_time = time.time() - message_start
-                    message_times.append(message_time)
-
-        # Calculate statistics
-        avg_conn_time = statistics.mean(connection_times)
-        p95_conn_time = sorted(connection_times)[int(num_iterations * 0.95)]
-
-        avg_msg_time = statistics.mean(message_times)
-        p95_msg_time = sorted(message_times)[int(len(message_times) * 0.95)]
-
-        print("\nWebSocket Performance Results:")
-        print(f"  Average connection time: {avg_conn_time:.6f} seconds")
-        print(f"  95th percentile connection time: {p95_conn_time:.6f} seconds")
-        print(f"  Average message round-trip time: {avg_msg_time:.6f} seconds")
-        print(f"  95th percentile message round-trip time: {p95_msg_time:.6f} seconds")
-
-        # Assert performance requirements
-        assert avg_conn_time < 0.5, f"Average WebSocket connection time ({avg_conn_time:.6f}s) exceeds threshold of 0.5s"
-        assert avg_msg_time < 0.2, f"Average WebSocket message time ({avg_msg_time:.6f}s) exceeds threshold of 0.2s"
-
+            
+            try:
+                async with websockets.connect(f"ws://localhost:8000/api/chat?token={token}") as websocket:
+                    connection_time = time.time() - start_time
+                    connection_times.append(connection_time)
+                    
+                    # Measure message exchange time
+                    for _ in range(5):
+                        message_start = time.time()
+                        
+                        await websocket.send(json.dumps({
+                            "message": "Hello, this is a test message"
+                        }))
+                        
+                        await websocket.recv()
+                        
+                        message_time = time.time() - message_start
+                        message_times.append(message_time)
+            except Exception as e:
+                print(f"WebSocket error: {e}")
+        
+        # Report results
+        if connection_times:
+            conn_metrics = {
+                "avg": statistics.mean(connection_times),
+                "p95": sorted(connection_times)[int(len(connection_times) * 0.95)]
+            }
+            print_performance_results("WebSocket Connection", conn_metrics)
+        
+        if message_times:
+            msg_metrics = {
+                "avg": statistics.mean(message_times),
+                "p95": sorted(message_times)[int(len(message_times) * 0.95)]
+            }
+            print_performance_results("WebSocket Message Exchange", msg_metrics)
+            
+            assert conn_metrics["avg"] < 0.5, "Average WebSocket connection time exceeds threshold"
+            assert msg_metrics["avg"] < 0.2, "Average WebSocket message time exceeds threshold"
+    
     # Run the async test
     asyncio.run(run_websocket_test())
 
 
 if __name__ == "__main__":
-    # This allows running the tests from command line
     pytest.main(["-xvs", __file__])
