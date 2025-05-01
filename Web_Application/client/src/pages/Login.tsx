@@ -1,12 +1,12 @@
 import React, { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import axios from "axios";
+import { Link, useNavigate, useLocation } from "react-router-dom";
+import axios, { AxiosError } from "axios";
 import { FaRegEye, FaRegEyeSlash, FaGoogle, FaFacebook } from "react-icons/fa";
 import backgroundImage from "../assets/3.jpg"; // Background image
 import { Brain } from "lucide-react";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
-import { useAuth } from "../context/AuthContext"; // Adjust path as needed
+import { useAuth } from "../context/AuthContext";
 
 interface FormData {
   email: string;
@@ -19,9 +19,24 @@ interface FormErrors {
   general?: string;
 }
 
+interface LocationState {
+  from?: {
+    pathname: string;
+  };
+}
+
+interface ApiErrorResponse {
+  detail?: string;
+}
+
 const LoginPage: React.FC = () => {
   const { login } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Get the previous location (if any) or default to profile page
+  const locationState = location.state as LocationState;
+  const from = locationState?.from?.pathname || "/userprofile";
 
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState<FormData>({
@@ -103,13 +118,18 @@ const LoginPage: React.FC = () => {
       // Update context with user details and remember me preference
       login({ name, email }, rememberMe);
 
-      // Navigate back to the home page
-      navigate("/");
-    } catch (error: any) {
+      // Navigate to the page they were trying to access or default
+      navigate(from);
+    } catch (error) {
       console.error("Authentication error:", error);
-      const errorMessage =
-        error.response?.data?.detail ||
-        "Login failed. Please check your credentials.";
+      let errorMessage = "Login failed. Please check your credentials.";
+
+      // Type guard to check if error is an AxiosError
+      if (axios.isAxiosError(error)) {
+        const axiosError = error as AxiosError<ApiErrorResponse>;
+        errorMessage = axiosError.response?.data?.detail || errorMessage;
+      }
+
       setErrors({ general: errorMessage });
     } finally {
       setIsLoading(false);
