@@ -13,7 +13,6 @@ interface AuthContextType {
   login: (user: User, rememberMe?: boolean) => void;
   logout: () => void;
   checkAuthStatus: () => Promise<boolean>;
-  isInitialized: boolean; // Added to track if initial auth check is complete
 }
 
 // Keys for localStorage
@@ -81,43 +80,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     const initAuth = async () => {
       // First check if "Remember Me" was enabled
       const rememberMe = localStorage.getItem(REMEMBER_ME_KEY) === "true";
-      const token = localStorage.getItem(TOKEN_STORAGE_KEY);
-      const storedUserJSON = localStorage.getItem(USER_STORAGE_KEY);
 
-      // If we have a token and remember me is on, or if we have a token and valid user data
-      if (token && (rememberMe || storedUserJSON)) {
+      if (rememberMe) {
+        const storedUserJSON = localStorage.getItem(USER_STORAGE_KEY);
         if (storedUserJSON) {
           try {
             const storedUser = JSON.parse(storedUserJSON);
             setUser(storedUser);
-            // Skip token validation if we have good user data and remember me
-            if (rememberMe) {
-              setIsInitialized(true);
-              return;
-            }
           } catch (error) {
             console.error("Failed to parse stored user data:", error);
+            // Clear invalid data
             localStorage.removeItem(USER_STORAGE_KEY);
           }
         }
-
-        // Validate token if needed
-        try {
-          const isValid = await checkAuthStatus();
-          if (!isValid) {
-            setUser(null);
-            if (!rememberMe) {
-              localStorage.removeItem(TOKEN_STORAGE_KEY);
-              localStorage.removeItem(USER_STORAGE_KEY);
-            }
-          }
-        } catch (error) {
-          console.error("Error during token validation:", error);
-          setUser(null);
-        }
       } else {
-        // No token or remember me is off
-        setUser(null);
+        // If not remember me, validate the token on each reload
+        await checkAuthStatus();
       }
 
       setIsInitialized(true);
@@ -136,7 +114,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     } else {
       // If rememberMe is false, we still keep the user data for the session
       // but we mark that we don't want to remember between browser sessions
-      localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(user));
       localStorage.setItem(REMEMBER_ME_KEY, "false");
     }
   };
@@ -152,17 +129,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     // Redirect to login page can be handled in the component that calls logout
   };
 
-  // Expose the isInitialized state to allow components to know when auth check is complete
+  if (!isInitialized) {
+    // You can return a loading indicator here if needed
+    return <div>Loading...</div>;
+  }
+
   return (
     <AuthContext.Provider
-      value={{
-        isLoggedIn,
-        user,
-        login,
-        logout,
-        checkAuthStatus,
-        isInitialized,
-      }}
+      value={{ isLoggedIn, user, login, logout, checkAuthStatus }}
     >
       {children}
     </AuthContext.Provider>
