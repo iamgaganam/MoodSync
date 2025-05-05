@@ -22,3 +22,9 @@ class TokenData(BaseModel):
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str
+
+# Add this function to your existing user.py file
+def get_professional_collection():
+    from ..utils.database import get_database
+    db = get_database()
+    return db["professionals"]

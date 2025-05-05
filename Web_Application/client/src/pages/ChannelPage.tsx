@@ -282,7 +282,10 @@ const DoctorChannelPage: React.FC = () => {
   };
 
   // Update filter
-  const updateFilter = (key: keyof FilterOptions, value: any) => {
+  const updateFilter = (
+    key: keyof FilterOptions,
+    value: string | [number, number] | null
+  ) => {
     setFilters((prev) => ({
       ...prev,
       [key]: value,

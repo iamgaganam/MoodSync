@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from "react";
+// File: client/src/pages/AdminDashboard.tsx
+import React, { useState, useEffect, useRef } from "react";
 import {
   AlertCircle,
   BarChart2,
@@ -115,6 +116,22 @@ interface ChatSessionData {
   lastMessage: string;
   time: string;
   flagged: boolean;
+}
+
+// New interface for professional form data
+interface ProfessionalFormData {
+  name: string;
+  email: string;
+  phone: string;
+  hospital: string;
+  specialty: string;
+  specializations: string[];
+  languages: string[];
+  education: string;
+  licenseNumber: string;
+  availableHours: string;
+  profileImage?: File | null;
+  licenseCertificate?: File | null;
 }
 
 // -------------------------
@@ -467,10 +484,16 @@ interface AlertsContentProps {
 interface ProfessionalsContentProps {
   professionals: ProfessionalData[];
   onProfessionalSelect: (professional: ProfessionalData) => void;
+  onAddProfessional: () => void; // New prop
 }
 
 interface AnalyticsContentProps {
   analytics: AnalyticsData | null;
+}
+
+interface AddProfessionalModalProps {
+  onClose: () => void;
+  onSave: (professional: ProfessionalFormData) => void;
 }
 
 // -------------------------
@@ -494,6 +517,10 @@ const AdminDashboard: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [notifications, setNotifications] = useState<NotificationData[]>([]);
 
+  // New state for add professional modal
+  const [showAddProfessionalModal, setShowAddProfessionalModal] =
+    useState(false);
+
   // Simulate API calls
   useEffect(() => {
     setTimeout(() => {
@@ -505,6 +532,116 @@ const AdminDashboard: React.FC = () => {
       setLoading(false);
     }, 1000);
   }, []);
+
+  // Function to handle adding a new professional with improved error handling
+  const handleAddProfessional = async (
+    professionalData: ProfessionalFormData
+  ) => {
+    try {
+      setLoading(true);
+
+      // Create FormData for the API request
+      const formData = new FormData();
+
+      // Add text fields
+      formData.append("name", professionalData.name);
+      formData.append("email", professionalData.email);
+      formData.append("phone", professionalData.phone);
+      formData.append("hospital", professionalData.hospital);
+      formData.append("specialty", professionalData.specialty);
+      formData.append(
+        "specializations",
+        JSON.stringify(professionalData.specializations)
+      );
+      formData.append("languages", JSON.stringify(professionalData.languages));
+      formData.append("education", professionalData.education);
+      formData.append("licenseNumber", professionalData.licenseNumber);
+      formData.append("availableHours", professionalData.availableHours);
+
+      // Add default values
+      formData.append("active", "true");
+      formData.append("verified", "false");
+      formData.append("joinDate", new Date().toISOString().split("T")[0]);
+      formData.append("availabilityStatus", "Available");
+
+      // Add files
+      if (professionalData.profileImage) {
+        formData.append("profileImage", professionalData.profileImage);
+      }
+
+      if (professionalData.licenseCertificate) {
+        formData.append(
+          "licenseCertificate",
+          professionalData.licenseCertificate
+        );
+      }
+
+      // To this:
+      const response = await fetch("http://localhost:8000/api/professionals/", {
+        method: "POST",
+        body: formData,
+      });
+
+      // Handle response with better error checking
+      const responseText = await response.text();
+      let result;
+
+      try {
+        // Only try to parse as JSON if there's actual content
+        result = responseText ? JSON.parse(responseText) : {};
+      } catch (e) {
+        console.error("Failed to parse response:", responseText, e);
+        throw new Error("Server returned invalid JSON response");
+      }
+
+      if (!response.ok) {
+        throw new Error(result.detail || `Server error: ${response.status}`);
+      }
+
+      // Create new professional object
+      const newProfessionalId =
+        professionals.length > 0
+          ? Math.max(...professionals.map((p) => p.id)) + 1
+          : 1;
+
+      // Add the new professional to the list
+      const newProfessional: ProfessionalData = {
+        id: newProfessionalId,
+        name: professionalData.name,
+        email: professionalData.email,
+        phone: professionalData.phone,
+        hospital: professionalData.hospital,
+        active: true,
+        joinDate: new Date().toISOString().split("T")[0],
+        verified: false,
+        specialty: professionalData.specialty,
+        specializations: professionalData.specializations,
+        languages: professionalData.languages,
+        education: professionalData.education,
+        licenseNumber: professionalData.licenseNumber,
+        currentAssignments: [],
+        availabilityStatus: "Available",
+        availableHours: professionalData.availableHours,
+        nextAvailableSlot: "",
+      };
+
+      // Update professionals state
+      setProfessionals([...professionals, newProfessional]);
+      setShowAddProfessionalModal(false);
+
+      // Show success message
+      alert("Professional added successfully!");
+    } catch (error) {
+      console.error("Error adding professional:", error);
+      alert(
+        `Failed to add professional: ${
+          error instanceof Error ? error.message : String(error)
+        }`
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Filter data based on search term
   const filteredUsers = users.filter(
@@ -736,6 +873,7 @@ const AdminDashboard: React.FC = () => {
                 <ProfessionalsContent
                   professionals={filteredProfessionals}
                   onProfessionalSelect={handleProfessionalSelect}
+                  onAddProfessional={() => setShowAddProfessionalModal(true)}
                 />
               )}
 
@@ -1131,6 +1269,14 @@ const AdminDashboard: React.FC = () => {
             </div>
           </div>
         </Modal>
+      )}
+
+      {/* Add Professional Modal */}
+      {showAddProfessionalModal && (
+        <AddProfessionalModal
+          onClose={() => setShowAddProfessionalModal(false)}
+          onSave={handleAddProfessional}
+        />
       )}
     </div>
   );
@@ -1764,12 +1910,16 @@ const AlertsContent: React.FC<AlertsContentProps> = ({
 const ProfessionalsContent: React.FC<ProfessionalsContentProps> = ({
   professionals,
   onProfessionalSelect,
+  onAddProfessional,
 }) => {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h2 className="text-lg font-medium">Professional Management</h2>
-        <button className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors flex items-center">
+        <button
+          className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors flex items-center"
+          onClick={onAddProfessional}
+        >
           <Plus size={16} className="mr-2" /> Add New Professional
         </button>
       </div>
@@ -2003,6 +2153,532 @@ const HelpContent: React.FC = () => {
         <p>Find help and documentation about the system here.</p>
       </div>
     </div>
+  );
+};
+
+// New Add Professional Modal Component
+const AddProfessionalModal: React.FC<AddProfessionalModalProps> = ({
+  onClose,
+  onSave,
+}) => {
+  const [formData, setFormData] = useState<ProfessionalFormData>({
+    name: "",
+    email: "",
+    phone: "",
+    hospital: "",
+    specialty: "",
+    specializations: [],
+    languages: [],
+    education: "",
+    licenseNumber: "",
+    availableHours: "",
+    profileImage: null,
+    licenseCertificate: null,
+  });
+
+  const [specialization, setSpecialization] = useState("");
+  const [language, setLanguage] = useState("");
+  const [formErrors, setFormErrors] = useState<
+    Partial<Record<keyof ProfessionalFormData, string>>
+  >({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const profileImageRef = useRef<HTMLInputElement>(null);
+  const licenseCertificateRef = useRef<HTMLInputElement>(null);
+
+  const handleInputChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+
+    // Clear error when field is edited
+    if (formErrors[name as keyof ProfessionalFormData]) {
+      setFormErrors((prev) => ({ ...prev, [name]: "" }));
+    }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, files } = e.target;
+    if (files && files.length > 0) {
+      setFormData((prev) => ({ ...prev, [name]: files[0] }));
+
+      // Clear error when field is edited
+      if (formErrors[name as keyof ProfessionalFormData]) {
+        setFormErrors((prev) => ({ ...prev, [name]: "" }));
+      }
+    }
+  };
+
+  const addSpecialization = () => {
+    if (specialization.trim()) {
+      setFormData((prev) => ({
+        ...prev,
+        specializations: [...prev.specializations, specialization.trim()],
+      }));
+      setSpecialization("");
+    }
+  };
+
+  const removeSpecialization = (index: number) => {
+    setFormData((prev) => ({
+      ...prev,
+      specializations: prev.specializations.filter((_, i) => i !== index),
+    }));
+  };
+
+  const addLanguage = () => {
+    if (language.trim()) {
+      setFormData((prev) => ({
+        ...prev,
+        languages: [...prev.languages, language.trim()],
+      }));
+      setLanguage("");
+    }
+  };
+
+  const removeLanguage = (index: number) => {
+    setFormData((prev) => ({
+      ...prev,
+      languages: prev.languages.filter((_, i) => i !== index),
+    }));
+  };
+
+  const validateForm = (): boolean => {
+    const errors: Partial<Record<keyof ProfessionalFormData, string>> = {};
+
+    if (!formData.name.trim()) errors.name = "Name is required";
+    if (!formData.email.trim()) errors.email = "Email is required";
+    else if (!/^\S+@\S+\.\S+$/.test(formData.email))
+      errors.email = "Email is invalid";
+
+    if (!formData.phone.trim()) errors.phone = "Phone number is required";
+    if (!formData.hospital.trim()) errors.hospital = "Hospital is required";
+    if (!formData.specialty.trim()) errors.specialty = "Specialty is required";
+    if (!formData.education.trim()) errors.education = "Education is required";
+    if (!formData.licenseNumber.trim())
+      errors.licenseNumber = "License number is required";
+    if (!formData.availableHours.trim())
+      errors.availableHours = "Available hours are required";
+
+    if (formData.specializations.length === 0)
+      errors.specializations = "At least one specialization is required";
+    if (formData.languages.length === 0)
+      errors.languages = "At least one language is required";
+
+    if (!formData.profileImage)
+      errors.profileImage = "Profile image is required";
+    if (!formData.licenseCertificate)
+      errors.licenseCertificate = "License certificate is required";
+
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!validateForm()) return;
+
+    setIsSubmitting(true);
+
+    try {
+      await onSave(formData);
+      onClose();
+    } catch (error) {
+      console.error("Error saving professional:", error);
+      // Error is handled in the parent component
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <Modal title="Add New Professional" onClose={onClose}>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Personal Information */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Full Name*
+            </label>
+            <input
+              type="text"
+              name="name"
+              value={formData.name}
+              onChange={handleInputChange}
+              className={`w-full px-3 py-2 border rounded-md ${
+                formErrors.name ? "border-red-500" : "border-gray-300"
+              }`}
+              placeholder="Dr. Full Name"
+            />
+            {formErrors.name && (
+              <p className="mt-1 text-xs text-red-500">{formErrors.name}</p>
+            )}
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Email Address*
+            </label>
+            <input
+              type="email"
+              name="email"
+              value={formData.email}
+              onChange={handleInputChange}
+              className={`w-full px-3 py-2 border rounded-md ${
+                formErrors.email ? "border-red-500" : "border-gray-300"
+              }`}
+              placeholder="doctor@hospital.lk"
+            />
+            {formErrors.email && (
+              <p className="mt-1 text-xs text-red-500">{formErrors.email}</p>
+            )}
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Phone Number*
+            </label>
+            <input
+              type="text"
+              name="phone"
+              value={formData.phone}
+              onChange={handleInputChange}
+              className={`w-full px-3 py-2 border rounded-md ${
+                formErrors.phone ? "border-red-500" : "border-gray-300"
+              }`}
+              placeholder="077-123-4567"
+            />
+            {formErrors.phone && (
+              <p className="mt-1 text-xs text-red-500">{formErrors.phone}</p>
+            )}
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Hospital/Clinic*
+            </label>
+            <input
+              type="text"
+              name="hospital"
+              value={formData.hospital}
+              onChange={handleInputChange}
+              className={`w-full px-3 py-2 border rounded-md ${
+                formErrors.hospital ? "border-red-500" : "border-gray-300"
+              }`}
+              placeholder="National Hospital of Sri Lanka"
+            />
+            {formErrors.hospital && (
+              <p className="mt-1 text-xs text-red-500">{formErrors.hospital}</p>
+            )}
+          </div>
+        </div>
+
+        {/* Professional Information */}
+        <div className="border-t pt-4 mt-4">
+          <h3 className="text-md font-medium mb-3">Professional Information</h3>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Primary Specialty*
+              </label>
+              <input
+                type="text"
+                name="specialty"
+                value={formData.specialty}
+                onChange={handleInputChange}
+                className={`w-full px-3 py-2 border rounded-md ${
+                  formErrors.specialty ? "border-red-500" : "border-gray-300"
+                }`}
+                placeholder="Psychiatry"
+              />
+              {formErrors.specialty && (
+                <p className="mt-1 text-xs text-red-500">
+                  {formErrors.specialty}
+                </p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                License Number (SLMC)*
+              </label>
+              <input
+                type="text"
+                name="licenseNumber"
+                value={formData.licenseNumber}
+                onChange={handleInputChange}
+                className={`w-full px-3 py-2 border rounded-md ${
+                  formErrors.licenseNumber
+                    ? "border-red-500"
+                    : "border-gray-300"
+                }`}
+                placeholder="SLMC-12345"
+              />
+              {formErrors.licenseNumber && (
+                <p className="mt-1 text-xs text-red-500">
+                  {formErrors.licenseNumber}
+                </p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Education/Qualifications*
+              </label>
+              <input
+                type="text"
+                name="education"
+                value={formData.education}
+                onChange={handleInputChange}
+                className={`w-full px-3 py-2 border rounded-md ${
+                  formErrors.education ? "border-red-500" : "border-gray-300"
+                }`}
+                placeholder="MD in Psychiatry, University of Colombo"
+              />
+              {formErrors.education && (
+                <p className="mt-1 text-xs text-red-500">
+                  {formErrors.education}
+                </p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Available Hours*
+              </label>
+              <input
+                type="text"
+                name="availableHours"
+                value={formData.availableHours}
+                onChange={handleInputChange}
+                className={`w-full px-3 py-2 border rounded-md ${
+                  formErrors.availableHours
+                    ? "border-red-500"
+                    : "border-gray-300"
+                }`}
+                placeholder="9 AM - 5 PM"
+              />
+              {formErrors.availableHours && (
+                <p className="mt-1 text-xs text-red-500">
+                  {formErrors.availableHours}
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* Specializations */}
+          <div className="mt-4">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Specializations/Focus Areas*
+            </label>
+            <div className="flex">
+              <input
+                type="text"
+                value={specialization}
+                onChange={(e) => setSpecialization(e.target.value)}
+                className="flex-1 px-3 py-2 border border-gray-300 rounded-l-md"
+                placeholder="Add a specialization (e.g., Depression, CBT)"
+              />
+              <button
+                type="button"
+                onClick={addSpecialization}
+                className="px-4 py-2 bg-indigo-600 text-white rounded-r-md hover:bg-indigo-700"
+              >
+                Add
+              </button>
+            </div>
+            {formErrors.specializations && (
+              <p className="mt-1 text-xs text-red-500">
+                {formErrors.specializations}
+              </p>
+            )}
+
+            {formData.specializations.length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-2">
+                {formData.specializations.map((spec, index) => (
+                  <div
+                    key={index}
+                    className="flex items-center bg-indigo-100 px-3 py-1 rounded-full"
+                  >
+                    <span className="text-indigo-800 text-sm">{spec}</span>
+                    <button
+                      type="button"
+                      onClick={() => removeSpecialization(index)}
+                      className="ml-1 text-indigo-600 hover:text-indigo-800"
+                    >
+                      <X size={16} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Languages */}
+          <div className="mt-4">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Languages Spoken*
+            </label>
+            <div className="flex">
+              <input
+                type="text"
+                value={language}
+                onChange={(e) => setLanguage(e.target.value)}
+                className="flex-1 px-3 py-2 border border-gray-300 rounded-l-md"
+                placeholder="Add a language (e.g., Sinhala, English)"
+              />
+              <button
+                type="button"
+                onClick={addLanguage}
+                className="px-4 py-2 bg-indigo-600 text-white rounded-r-md hover:bg-indigo-700"
+              >
+                Add
+              </button>
+            </div>
+            {formErrors.languages && (
+              <p className="mt-1 text-xs text-red-500">
+                {formErrors.languages}
+              </p>
+            )}
+
+            {formData.languages.length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-2">
+                {formData.languages.map((lang, index) => (
+                  <div
+                    key={index}
+                    className="flex items-center bg-indigo-100 px-3 py-1 rounded-full"
+                  >
+                    <span className="text-indigo-800 text-sm">{lang}</span>
+                    <button
+                      type="button"
+                      onClick={() => removeLanguage(index)}
+                      className="ml-1 text-indigo-600 hover:text-indigo-800"
+                    >
+                      <X size={16} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Document Uploads */}
+        <div className="border-t pt-4 mt-4">
+          <h3 className="text-md font-medium mb-3">Document Uploads</h3>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Profile Image*
+              </label>
+              <input
+                type="file"
+                ref={profileImageRef}
+                name="profileImage"
+                accept="image/*"
+                onChange={handleFileChange}
+                className="hidden"
+              />
+              <div
+                className={`border-2 border-dashed rounded-md p-4 text-center cursor-pointer ${
+                  formErrors.profileImage ? "border-red-500" : "border-gray-300"
+                }`}
+                onClick={() => profileImageRef.current?.click()}
+              >
+                {formData.profileImage ? (
+                  <div className="flex items-center justify-center">
+                    <img
+                      src={URL.createObjectURL(formData.profileImage)}
+                      alt="Profile preview"
+                      className="h-32 w-32 object-cover rounded-full"
+                    />
+                  </div>
+                ) : (
+                  <div className="text-gray-500">
+                    <User size={32} className="mx-auto mb-2" />
+                    <p>Click to upload profile image</p>
+                    <p className="text-xs mt-1">JPG, PNG, GIF up to 5MB</p>
+                  </div>
+                )}
+              </div>
+              {formErrors.profileImage && (
+                <p className="mt-1 text-xs text-red-500">
+                  {formErrors.profileImage}
+                </p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                License Certificate*
+              </label>
+              <input
+                type="file"
+                ref={licenseCertificateRef}
+                name="licenseCertificate"
+                accept=".pdf,.jpg,.jpeg,.png"
+                onChange={handleFileChange}
+                className="hidden"
+              />
+              <div
+                className={`border-2 border-dashed rounded-md p-4 text-center cursor-pointer ${
+                  formErrors.licenseCertificate
+                    ? "border-red-500"
+                    : "border-gray-300"
+                }`}
+                onClick={() => licenseCertificateRef.current?.click()}
+              >
+                {formData.licenseCertificate ? (
+                  <div className="text-green-600">
+                    <FileText size={32} className="mx-auto mb-2" />
+                    <p>{formData.licenseCertificate.name}</p>
+                    <p className="text-xs mt-1">
+                      {(formData.licenseCertificate.size / 1024 / 1024).toFixed(
+                        2
+                      )}{" "}
+                      MB
+                    </p>
+                  </div>
+                ) : (
+                  <div className="text-gray-500">
+                    <FileText size={32} className="mx-auto mb-2" />
+                    <p>Click to upload license certificate</p>
+                    <p className="text-xs mt-1">PDF, JPG, PNG up to 5MB</p>
+                  </div>
+                )}
+              </div>
+              {formErrors.licenseCertificate && (
+                <p className="mt-1 text-xs text-red-500">
+                  {formErrors.licenseCertificate}
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="border-t pt-4 mt-4 flex justify-end space-x-3">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2 bg-white border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50"
+            disabled={isSubmitting}
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            className="px-4 py-2 bg-indigo-600 border border-transparent rounded-md shadow-sm text-sm font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? "Saving..." : "Save Professional"}
+          </button>
+        </div>
+      </form>
+    </Modal>
   );
 };
 

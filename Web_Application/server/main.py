@@ -1,26 +1,36 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+import os
 from server.app.api.auth import router as auth_router
 from server.app.api.protected import router as protected_router
 from server.app.api.sentiment import router as sentiment_router
-from server.app.api.chat_socket import router as chat_socket_router  # New WebSocket endpoint
+from server.app.api.chat_socket import router as chat_socket_router
+from server.app.api.professionals import router as professionals_router
 
 app = FastAPI()
 
-# CORS middleware setup. *Dog said not to switch*
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=["http://localhost:5173"],  # Make sure this matches your frontend URL
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+# Create upload directories
+os.makedirs("uploads/profile_images", exist_ok=True)
+os.makedirs("uploads/license_certificates", exist_ok=True)
+
+# Mount static files
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+
 # Include the different API routers
-app.include_router(auth_router, tags=["auth"])  # Login with JWT, MAKE CHANGES before Submitting
-app.include_router(protected_router, tags=["protected"])  # OAuth 2.0
+app.include_router(auth_router, tags=["auth"])
+app.include_router(protected_router, tags=["protected"])
 app.include_router(sentiment_router)
-app.include_router(chat_socket_router, tags=["chat-socket"])  # New chat WebSocket endpoints
+app.include_router(chat_socket_router, tags=["chat-socket"])
+app.include_router(professionals_router, prefix="/api/professionals", tags=["professionals"])
 
 @app.get("/")
 def root():
