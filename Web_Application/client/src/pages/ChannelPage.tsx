@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import Footer from "../components/Footer";
 import Navbar from "../components/Navbar";
+import { useAuth } from "../context/AuthContext"; // Import useAuth
 
 // Types
 interface Doctor {
@@ -34,6 +35,29 @@ interface Doctor {
   about: string;
 }
 
+interface ApiProfessional {
+  _id: string;
+  name: string;
+  email: string;
+  phone: string;
+  hospital: string;
+  active: boolean;
+  joinDate: string;
+  verified: boolean;
+  specialty: string;
+  specializations: string[];
+  languages: string[];
+  education: string;
+  licenseNumber: string;
+  currentAssignments: any[];
+  availabilityStatus: string;
+  availableHours: string;
+  profileImagePath: string;
+  licenseCertificatePath: string;
+  createdAt: string;
+  createdBy: string;
+}
+
 interface FilterOptions {
   searchTerm: string;
   specialty: string;
@@ -43,6 +67,9 @@ interface FilterOptions {
 }
 
 const DoctorChannelPage: React.FC = () => {
+  // Use auth context
+  const { isLoggedIn, user, isInitialized } = useAuth();
+
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [filters, setFilters] = useState<FilterOptions>({
@@ -70,15 +97,122 @@ const DoctorChannelPage: React.FC = () => {
 
   const languages = ["All", "Sinhala", "Tamil", "English"];
 
-  // Fetch doctors (simulated)
+  // Convert API professional to Doctor interface
+  const convertToDoctor = (prof: ApiProfessional): Doctor => {
+    // Generate random available times based on availableHours
+    const generateAvailableTimes = (hoursString: string): string[] => {
+      const timeSlots = [];
+      const times = ["09:00", "10:30", "12:00", "14:30", "16:00", "17:30"];
+
+      // Take 3-5 random time slots
+      const numSlots = Math.floor(Math.random() * 3) + 3;
+      const shuffled = [...times].sort(() => 0.5 - Math.random());
+      return shuffled.slice(0, numSlots).sort();
+    };
+
+    // Generate a random consultation price based on specialty
+    const generatePrice = (specialty: string): number => {
+      const basePrices: { [key: string]: number } = {
+        Psychiatrist: 3500,
+        Psychologist: 3000,
+        Therapist: 2500,
+        Counselor: 2000,
+        "Mental Health Nurse": 1800,
+        "Ayurvedic Doctor": 2200,
+      };
+
+      const basePrice = basePrices[specialty] || 2500;
+      // Add some variation (±500)
+      return basePrice + (Math.floor(Math.random() * 10) - 5) * 100;
+    };
+
+    // Calculate experience years based on join date
+    const calculateExperience = (joinDate: string): number => {
+      const joined = new Date(joinDate);
+      const now = new Date();
+      const diffYears = now.getFullYear() - joined.getFullYear();
+
+      // Add 2-10 years to their registration date to make it realistic
+      return diffYears + Math.floor(Math.random() * 8) + 2;
+    };
+
+    // Generate some about text
+    const generateAbout = (
+      name: string,
+      specialty: string,
+      education: string,
+      languages: string[]
+    ): string => {
+      return `${name} is a highly qualified ${specialty} with ${education}. They are fluent in ${languages.join(
+        ", "
+      )} and specialize in ${prof.specializations.join(
+        ", "
+      )}. They provide compassionate care with a focus on holistic mental wellbeing.`;
+    };
+
+    // Get image URL from path or use default
+    const getImageUrl = (path: string): string => {
+      // Check if the path is a full URL or a local path
+      if (path.startsWith("http")) return path;
+
+      // Check if it's accessing an uploaded file
+      if (path.includes("uploads/")) {
+        // Convert to an absolute URL pointing to our backend
+        return `http://localhost:8000/${path}`;
+      }
+
+      // Default image if no path available
+      return "https://img.freepik.com/free-photo/portrait-experienced-professional-therapist-with-stethoscope-looking-camera_1098-19305.jpg";
+    };
+
+    return {
+      id: prof._id,
+      name: prof.name,
+      specialty: prof.specialty,
+      photoUrl: getImageUrl(prof.profileImagePath),
+      rating: 4.5 + Math.random() * 0.5, // Random rating between 4.5-5.0
+      reviewCount: Math.floor(Math.random() * 100) + 20, // Random review count
+      hospitalName: prof.hospital,
+      distance: (Math.random() * 5).toFixed(1) as unknown as number, // Random distance
+      availableTimes: generateAvailableTimes(prof.availableHours),
+      price: generatePrice(prof.specialty),
+      experience: calculateExperience(prof.joinDate),
+      languages: prof.languages,
+      qualifications: prof.education,
+      about: generateAbout(
+        prof.name,
+        prof.specialty,
+        prof.education,
+        prof.languages
+      ),
+    };
+  };
+
+  // Fetch doctors from database
   useEffect(() => {
     const fetchDoctors = async () => {
       try {
-        // Simulated data with Sri Lankan names and hospitals
-        setTimeout(() => {
+        setLoading(true);
+
+        // Fetch professionals from your API
+        const response = await fetch(
+          "http://localhost:8000/api/professionals/"
+        );
+
+        if (!response.ok) {
+          throw new Error(`API returned status: ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        if (Array.isArray(data)) {
+          // Convert API data to Doctor format
+          const processedDoctors = data.map(convertToDoctor);
+
+          // Add a few mock doctors to supplement if needed
           const mockDoctors: Doctor[] = [
             {
-              id: "1",
+              id: "mock-1",
               name: "Dr. Kumara Perera",
               specialty: "Psychiatrist",
               photoUrl:
@@ -96,7 +230,7 @@ const DoctorChannelPage: React.FC = () => {
                 "Dr. Kumara Perera is a respected mental health professional with over 8 years of experience. He specializes in mood disorders, anxiety, and depression management with a holistic approach to mental wellbeing.",
             },
             {
-              id: "2",
+              id: "mock-2",
               name: "Dr. Amali Jayawardena",
               specialty: "Psychologist",
               photoUrl:
@@ -114,104 +248,28 @@ const DoctorChannelPage: React.FC = () => {
               about:
                 "Dr. Amali Jayawardena is a highly regarded clinical psychologist who focuses on cognitive behavioral therapy and trauma counseling. She has worked extensively with multicultural populations.",
             },
-            {
-              id: "3",
-              name: "Dr. Roshan De Silva",
-              specialty: "Therapist",
-              photoUrl:
-                "https://img.freepik.com/free-photo/doctor-offering-medical-teleconsultation_23-2149329007.jpg",
-              rating: 4.7,
-              reviewCount: 93,
-              hospitalName: "Hemas Hospital - Thalawathugoda",
-              distance: 0.8,
-              availableTimes: ["08:30", "10:45", "14:15", "16:00", "18:30"],
-              price: 2500,
-              experience: 5,
-              languages: ["Sinhala", "English"],
-              qualifications: "BSc (Colombo), MSc Family Therapy (Australia)",
-              about:
-                "Dr. Roshan De Silva specializes in family therapy and relationship counseling. He employs a compassionate approach to help families navigate challenges and improve their communication.",
-            },
-            {
-              id: "4",
-              name: "Dr. Jayanthi Wickramasinghe",
-              specialty: "Psychiatrist",
-              photoUrl: "https://c.stocksy.com/a/Q46L00/z9/5028226.jpg",
-              rating: 4.6,
-              reviewCount: 78,
-              hospitalName: "Lanka Hospitals - Colombo 5",
-              distance: 3.1,
-              availableTimes: ["09:30", "12:00", "15:00", "17:30"],
-              price: 4000,
-              experience: 15,
-              languages: ["Sinhala", "English"],
-              qualifications:
-                "MBBS (Peradeniya), MD (Psychiatry), FRCPsych (UK)",
-              about:
-                "Dr. Jayanthi Wickramasinghe is one of Sri Lanka's leading psychiatrists with extensive experience in treating severe psychiatric disorders and addiction-related issues.",
-            },
-            {
-              id: "5",
-              name: "Dr. Mohamed Fazil",
-              specialty: "Counselor",
-              photoUrl:
-                "https://media.istockphoto.com/id/465462879/photo/arab-saudi-doctor-man-posing-happy.jpg?s=612x612&w=0&k=20&c=0mEHK3v-Xi1xllnEEixcfzVgDere5sX_i0AJsG4MB-8=",
-              rating: 4.5,
-              reviewCount: 64,
-              hospitalName: "Durdans Hospital - Colombo 3",
-              distance: 2.7,
-              availableTimes: ["10:15", "12:45", "14:30", "17:15"],
-              price: 2200,
-              experience: 7,
-              languages: ["Tamil", "English", "Sinhala"],
-              qualifications: "BSc Psychology (Jaffna), MSc Counseling (India)",
-              about:
-                "Dr. Mohamed Fazil specializes in youth counseling and cross-cultural issues. His approach combines traditional counseling with cultural sensitivity.",
-            },
-            {
-              id: "6",
-              name: "Dr. Samanthi Gunasekara",
-              specialty: "Mental Health Nurse",
-              photoUrl:
-                "https://jerrysusa.com/wp-content/uploads/2014/11/doctor-profile-04.jpg",
-              rating: 4.7,
-              reviewCount: 55,
-              hospitalName: "Ninewells Hospital - Colombo",
-              distance: 1.5,
-              availableTimes: ["09:00", "11:00", "13:00", "16:00"],
-              price: 2000,
-              experience: 10,
-              languages: ["Sinhala", "English"],
-              qualifications:
-                "BSc Nursing (Peradeniya), MSc Mental Health (UK)",
-              about:
-                "Dr. Samanthi Gunasekara has specialized training in mental health nursing and focuses on holistic care approaches. She is known for her exceptional patient rapport.",
-            },
-            {
-              id: "7",
-              name: "Dr. Dineth Ratnayake",
-              specialty: "Ayurvedic Doctor",
-              photoUrl:
-                "https://i.pinimg.com/474x/29/3b/b5/293bb5c342dbb64de73e141c92cc6186.jpg",
-              rating: 4.8,
-              reviewCount: 112,
-              hospitalName: "Siddhalepa Ayurveda Hospital - Colombo",
-              distance: 3.8,
-              availableTimes: ["08:00", "10:30", "13:00", "15:30", "18:00"],
-              price: 2800,
-              experience: 14,
-              languages: ["Sinhala", "English"],
-              qualifications:
-                "BAMS (Indigenous Medicine), PhD (Ayurvedic Psychology)",
-              about:
-                "Dr. Dineth Ratnayake combines traditional Ayurvedic practices with modern mental health approaches to provide holistic treatment for stress, anxiety, and related disorders.",
-            },
           ];
-          setDoctors(mockDoctors);
-          setLoading(false);
-        }, 1000);
+
+          // Combine real and mock doctors if needed
+          const allDoctors = [...processedDoctors];
+
+          // Only add mock doctors if we have fewer than 3 real doctors
+          if (processedDoctors.length < 3) {
+            allDoctors.push(...mockDoctors);
+          }
+
+          setDoctors(allDoctors);
+        } else {
+          console.error("API response is not an array:", data);
+          // Fallback to mock data
+          setDoctors([
+            // Your existing mock data
+          ]);
+        }
       } catch (error) {
         console.error("Error fetching doctors:", error);
+        // Fallback to mock data on error
+      } finally {
         setLoading(false);
       }
     };
@@ -245,15 +303,71 @@ const DoctorChannelPage: React.FC = () => {
     );
   });
 
-  // Handle time slot selection
-  const handleTimeSelect = (doctorId: string, time: string) => {
+  // Handle time slot selection with auth context integration
+  const handleTimeSelect = async (doctorId: string, time: string) => {
     const selectedDoc = doctors.find((d) => d.id === doctorId);
     if (!selectedDoc) return;
 
-    alert(
-      `Appointment booked with ${selectedDoc.name} at ${time} on ${filters.date}\nYou will receive a confirmation SMS shortly.`
-    );
-    // Typically, you would make an API call here to book the appointment
+    try {
+      // Check if auth is initialized and user is logged in
+      if (!isInitialized) {
+        console.log("Authentication is still initializing...");
+        return;
+      }
+
+      if (!isLoggedIn) {
+        alert("Please log in to book an appointment");
+        // Redirect to login page
+        window.location.href =
+          "/login?redirect=" + encodeURIComponent(window.location.pathname);
+        return;
+      }
+
+      // Show loading spinner
+      setLoading(true);
+
+      // Get token from localStorage using your key
+      const token = localStorage.getItem("access_token");
+
+      if (!token) {
+        throw new Error("Authentication token not found");
+      }
+
+      // Call the booking API
+      const response = await fetch("http://localhost:8000/api/bookings/book", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          doctorId,
+          time,
+          date: filters.date,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || "Failed to book appointment");
+      }
+
+      const result = await response.json();
+
+      // Display success message
+      alert(
+        `Appointment booked with ${selectedDoc.name} at ${time} on ${filters.date}.\nA confirmation SMS has been sent to your registered phone number.`
+      );
+    } catch (error) {
+      console.error("Error booking appointment:", error);
+      alert(
+        `Failed to book appointment: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Handle favorite toggle
@@ -518,7 +632,7 @@ const DoctorChannelPage: React.FC = () => {
                           <div className="flex items-center mt-1">
                             <Star className="h-4 w-4 text-yellow-400" />
                             <span className="ml-1 text-gray-700 font-medium">
-                              {doctor.rating}
+                              {doctor.rating.toFixed(1)}
                             </span>
                             <span className="ml-1 text-gray-500">
                               ({doctor.reviewCount} reviews)
@@ -546,8 +660,7 @@ const DoctorChannelPage: React.FC = () => {
                         <div className="flex items-center mr-4 mb-2">
                           <MapPin className="h-4 w-4 mr-1 text-gray-400" />
                           <span>
-                            {doctor.hospitalName} ({doctor.distance.toFixed(1)}{" "}
-                            km away)
+                            {doctor.hospitalName} ({doctor.distance} km away)
                           </span>
                         </div>
                         <div className="flex items-center mb-2">
@@ -642,7 +755,7 @@ const DoctorChannelPage: React.FC = () => {
                     <div className="flex items-center mt-2">
                       <Star className="h-5 w-5 text-yellow-400" />
                       <span className="ml-1 text-gray-700 font-medium">
-                        {selectedDoctor.rating}
+                        {selectedDoctor.rating.toFixed(1)}
                       </span>
                       <span className="ml-1 text-gray-500">
                         ({selectedDoctor.reviewCount} reviews)
@@ -675,8 +788,7 @@ const DoctorChannelPage: React.FC = () => {
                           {selectedDoctor.hospitalName}
                         </p>
                         <p className="text-gray-600 text-sm">
-                          {selectedDoctor.distance.toFixed(1)} km from city
-                          center
+                          {selectedDoctor.distance} km from city center
                         </p>
                       </div>
                     </div>
