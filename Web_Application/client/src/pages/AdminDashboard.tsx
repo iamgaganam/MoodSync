@@ -1,26 +1,19 @@
 // File: client/src/pages/AdminDashboard.tsx
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import {
   AlertCircle,
   BarChart2,
   Bell,
   ChevronDown,
   ChevronUp,
-  Clock,
-  Edit,
-  Eye,
   FileText,
   HelpCircle,
   Home,
   LogOut,
   MessageSquare,
-  Plus,
   Settings,
-  Trash2,
-  TrendingUp,
   User,
   Users,
-  X,
 } from "lucide-react";
 
 // -------------------------
@@ -68,7 +61,7 @@ interface Assignment {
 }
 
 interface ProfessionalData {
-  id: number;
+  id: number | string;
   name: string;
   email: string;
   phone: string;
@@ -85,6 +78,29 @@ interface ProfessionalData {
   availabilityStatus: string;
   availableHours: string;
   nextAvailableSlot: string;
+}
+
+interface ApiProfessional {
+  _id: string | number;
+  name: string;
+  email: string;
+  phone: string;
+  hospital: string;
+  active: boolean;
+  joinDate: string;
+  verified: boolean;
+  specialty: string;
+  specializations: string[];
+  languages: string[];
+  education: string;
+  licenseNumber: string;
+  currentAssignments: Assignment[];
+  availabilityStatus: string;
+  availableHours: string;
+  profileImagePath: string;
+  licenseCertificatePath: string;
+  createdAt: string;
+  createdBy: string;
 }
 
 interface UserActivity {
@@ -110,14 +126,6 @@ interface NotificationData {
   message: string;
 }
 
-interface ChatSessionData {
-  id: number;
-  participants: string[];
-  lastMessage: string;
-  time: string;
-  flagged: boolean;
-}
-
 // New interface for professional form data
 interface ProfessionalFormData {
   name: string;
@@ -132,6 +140,69 @@ interface ProfessionalFormData {
   availableHours: string;
   profileImage?: File | null;
   licenseCertificate?: File | null;
+}
+
+// -------------------------
+// Component Props Interfaces
+// -------------------------
+interface SidebarLinkProps {
+  icon: React.ReactNode;
+  title: string;
+  isActive: boolean;
+  onClick: () => void;
+  collapsed: boolean;
+}
+
+interface ModalProps {
+  title: string;
+  children: React.ReactNode;
+  onClose: () => void;
+}
+
+interface StatCardProps {
+  title: string;
+  value: string;
+  change: string;
+  icon: React.ReactNode;
+  positive: boolean;
+}
+
+interface QuickActionCardProps {
+  title: string;
+  icon: React.ReactNode;
+  onClick: () => void;
+}
+
+interface DashboardContentProps {
+  analytics: AnalyticsData | null;
+  users: UserData[];
+  alerts: AlertData[];
+  professionals: ProfessionalData[];
+}
+
+interface UsersContentProps {
+  users: UserData[];
+  onUserSelect: (user: UserData) => void;
+}
+
+interface AlertsContentProps {
+  alerts: AlertData[];
+  onAlertSelect: (alert: AlertData) => void;
+}
+
+interface ProfessionalsContentProps {
+  professionals: ProfessionalData[];
+  onProfessionalSelect: (professional: ProfessionalData) => void;
+  onAddProfessional: () => void;
+}
+
+interface AnalyticsContentProps {
+  analytics: AnalyticsData | null;
+}
+
+interface AddProfessionalModalProps {
+  onClose: () => void;
+  onSave: (professional: ProfessionalFormData) => void;
 }
 
 // -------------------------
@@ -154,37 +225,6 @@ const getRiskLabel = (risk: string): string => risk;
 const getAlertTypeColor = (type: string): string => {
   if (type.toLowerCase().includes("critical")) return "bg-red-50";
   return "bg-blue-50";
-};
-
-const getMoodBarColor = (label: string): string => {
-  if (
-    label.toLowerCase().includes("excellent") ||
-    label.toLowerCase().includes("happy")
-  )
-    return "bg-green-500";
-  if (
-    label.toLowerCase().includes("normal") ||
-    label.toLowerCase().includes("average")
-  )
-    return "bg-yellow-500";
-  if (
-    label.toLowerCase().includes("critical") ||
-    label.toLowerCase().includes("bad")
-  )
-    return "bg-red-500";
-  return "bg-blue-500";
-};
-
-const getAlertIconBgColor = (type: string): string => {
-  if (type.toLowerCase().includes("critical")) return "bg-red-100";
-  if (type.toLowerCase().includes("high")) return "bg-yellow-100";
-  return "bg-blue-100";
-};
-
-const getAlertIconColor = (type: string): string => {
-  if (type.toLowerCase().includes("critical")) return "text-red-600";
-  if (type.toLowerCase().includes("high")) return "text-yellow-600";
-  return "text-blue-600";
 };
 
 // -------------------------
@@ -409,92 +449,1029 @@ const mockNotifications: NotificationData[] = [
   { id: 2, message: "Alert: User distress detected in Kandy" },
 ];
 
-const mockChatSessions: ChatSessionData[] = [
-  {
-    id: 1,
-    participants: ["Sahan Perera", "Dr. Fernando"],
-    lastMessage: "I'll try the meditation exercises you recommended.",
-    time: "5 minutes ago",
-    flagged: false,
-  },
-  {
-    id: 2,
-    participants: ["Dilshan Silva", "Dr. Gunawardena"],
-    lastMessage: "I have some concerns about my medication.",
-    time: "20 minutes ago",
-    flagged: true,
-  },
-  {
-    id: 3,
-    participants: ["Amali Jayawardena", "Dr. Fernando"],
-    lastMessage: "I've been feeling much worse this week.",
-    time: "1 hour ago",
-    flagged: true,
-  },
-];
-
 // -------------------------
-// Component Props Interfaces
+// Component Implementations
 // -------------------------
-interface SidebarLinkProps {
-  icon: React.ReactNode;
-  title: string;
-  isActive: boolean;
-  onClick: () => void;
-  collapsed: boolean;
-}
 
-interface ModalProps {
-  title: string;
-  children: React.ReactNode;
-  onClose: () => void;
-}
+// SidebarLink Component
+const SidebarLink: React.FC<SidebarLinkProps> = ({
+  icon,
+  title,
+  isActive,
+  onClick,
+  collapsed,
+}) => {
+  return (
+    <button
+      onClick={onClick}
+      className={`w-full flex items-center p-3 transition-colors ${
+        isActive
+          ? "bg-indigo-700 text-white"
+          : "text-indigo-100 hover:bg-indigo-700"
+      }`}
+    >
+      <span className="flex-shrink-0">{icon}</span>
+      {!collapsed && <span className="ml-3 text-sm">{title}</span>}
+    </button>
+  );
+};
 
-interface StatCardProps {
-  title: string;
-  value: string;
-  change: string;
-  icon: React.ReactNode;
-  positive: boolean;
-}
+// Modal Component
+const Modal: React.FC<ModalProps> = ({ title, children, onClose }) => {
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+        <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+          <h3 className="text-lg font-medium">{title}</h3>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-500"
+          >
+            <svg
+              className="h-5 w-5"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
+          </button>
+        </div>
+        <div className="px-6 py-4">{children}</div>
+      </div>
+    </div>
+  );
+};
 
-interface QuickActionCardProps {
-  title: string;
-  icon: React.ReactNode;
-  onClick: () => void;
-}
+// StatCard Component
+const StatCard: React.FC<StatCardProps> = ({
+  title,
+  value,
+  change,
+  icon,
+  positive,
+}) => {
+  return (
+    <div className="bg-white p-6 rounded-lg shadow-sm">
+      <div className="flex items-center justify-between">
+        <h3 className="text-gray-500 text-sm">{title}</h3>
+        <div className="bg-indigo-100 p-2 rounded-md text-indigo-600">
+          {icon}
+        </div>
+      </div>
+      <p className="text-2xl font-bold mt-2">{value}</p>
+      <div className="flex items-center mt-2">
+        <span
+          className={`text-xs ${positive ? "text-green-600" : "text-red-600"}`}
+        >
+          {change}
+        </span>
+      </div>
+    </div>
+  );
+};
 
-interface DashboardContentProps {
-  analytics: AnalyticsData | null;
-  users: UserData[];
-  alerts: AlertData[];
-  professionals: ProfessionalData[];
-}
+// QuickActionCard Component
+const QuickActionCard: React.FC<QuickActionCardProps> = ({
+  title,
+  icon,
+  onClick,
+}) => {
+  return (
+    <button
+      onClick={onClick}
+      className="bg-white p-6 rounded-lg shadow-sm hover:shadow transition-shadow flex flex-col items-center text-center"
+    >
+      <div className="bg-indigo-100 p-3 rounded-full text-indigo-600 mb-3">
+        {icon}
+      </div>
+      <h3 className="font-medium">{title}</h3>
+    </button>
+  );
+};
 
-interface UsersContentProps {
-  users: UserData[];
-  onUserSelect: (user: UserData) => void;
-}
+// DashboardContent Component
+const DashboardContent: React.FC<DashboardContentProps> = ({
+  analytics,
+  users,
+  alerts,
+  professionals,
+}) => {
+  return (
+    <div className="space-y-6">
+      {/* Summary Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard
+          title="Active Users"
+          value={`${users.filter((u) => u.active).length}`}
+          change="+5% from last week"
+          icon={<Users size={20} />}
+          positive={true}
+        />
+        <StatCard
+          title="Active Professionals"
+          value={`${professionals.filter((p) => p.active).length}`}
+          change="+2% from last week"
+          icon={<User size={20} />}
+          positive={true}
+        />
+        <StatCard
+          title="Alerts"
+          value={`${alerts.filter((a) => a.status === "New").length} new`}
+          change="-8% from last week"
+          icon={<AlertCircle size={20} />}
+          positive={true}
+        />
+        <StatCard
+          title="Overall Mood"
+          value={analytics ? `${analytics.overallSentiment}/5` : "N/A"}
+          change="+0.3 from last week"
+          icon={<BarChart2 size={20} />}
+          positive={true}
+        />
+      </div>
 
-interface AlertsContentProps {
-  alerts: AlertData[];
-  onAlertSelect: (alert: AlertData) => void;
-}
+      {/* Quick Actions */}
+      <div>
+        <h2 className="text-lg font-medium mb-4">Quick Actions</h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <QuickActionCard
+            title="View Active Users"
+            icon={<Users size={20} />}
+            onClick={() => console.log("View users clicked")}
+          />
+          <QuickActionCard
+            title="Manage Alerts"
+            icon={<AlertCircle size={20} />}
+            onClick={() => console.log("Manage alerts clicked")}
+          />
+          <QuickActionCard
+            title="Add Professional"
+            icon={<User size={20} />}
+            onClick={() => console.log("Add professional clicked")}
+          />
+        </div>
+      </div>
 
-interface ProfessionalsContentProps {
-  professionals: ProfessionalData[];
-  onProfessionalSelect: (professional: ProfessionalData) => void;
-  onAddProfessional: () => void; // New prop
-}
+      {/* Recent Activity */}
+      <div className="bg-white rounded-lg shadow-sm p-6">
+        <h2 className="text-lg font-medium mb-4">Recent Activity</h2>
+        <div className="space-y-3">
+          {analytics &&
+            analytics.recentActivity.map((activity, idx) => (
+              <div key={idx} className="flex items-start">
+                <div
+                  className={`h-8 w-8 rounded-full flex items-center justify-center ${
+                    activity.type === "login"
+                      ? "bg-blue-100 text-blue-600"
+                      : activity.type === "mood"
+                      ? "bg-green-100 text-green-600"
+                      : activity.type === "assessment"
+                      ? "bg-yellow-100 text-yellow-600"
+                      : "bg-purple-100 text-purple-600"
+                  }`}
+                >
+                  {activity.type.charAt(0).toUpperCase()}
+                </div>
+                <div className="ml-3 flex-1">
+                  <p className="text-sm font-medium">
+                    {activity.user} - {activity.action}
+                  </p>
+                  <p className="text-xs text-gray-500">{activity.time}</p>
+                </div>
+              </div>
+            ))}
+        </div>
+      </div>
 
-interface AnalyticsContentProps {
-  analytics: AnalyticsData | null;
-}
+      {/* Recent Alerts */}
+      <div className="bg-white rounded-lg shadow-sm p-6">
+        <h2 className="text-lg font-medium mb-4">Recent Alerts</h2>
+        <div className="space-y-3">
+          {alerts.slice(0, 3).map((alert) => (
+            <div
+              key={alert.id}
+              className={`p-3 rounded-lg ${getAlertTypeColor(alert.type)}`}
+            >
+              <div className="flex items-start">
+                <div className="flex-1">
+                  <p className="text-sm font-medium">
+                    {alert.type} Alert: {alert.description}
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    {alert.userName} - {alert.timestamp}
+                  </p>
+                </div>
+                <div>
+                  <span
+                    className={`px-2 py-1 rounded-full text-xs ${
+                      alert.status === "New"
+                        ? "bg-red-100 text-red-800"
+                        : alert.status === "In Progress"
+                        ? "bg-yellow-100 text-yellow-800"
+                        : "bg-green-100 text-green-800"
+                    }`}
+                  >
+                    {alert.status}
+                  </span>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
 
-interface AddProfessionalModalProps {
-  onClose: () => void;
-  onSave: (professional: ProfessionalFormData) => void;
-}
+// UsersContent Component
+const UsersContent: React.FC<UsersContentProps> = ({ users, onUserSelect }) => {
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h2 className="text-lg font-medium">User Management</h2>
+        <button className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors">
+          Add New User
+        </button>
+      </div>
+
+      <div className="bg-white rounded-lg shadow overflow-hidden">
+        <table className="min-w-full divide-y divide-gray-200">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                User
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Status
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Mood
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Risk Level
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Last Active
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Actions
+              </th>
+            </tr>
+          </thead>
+          <tbody className="bg-white divide-y divide-gray-200">
+            {users.map((user) => (
+              <tr key={user.id} className="hover:bg-gray-50">
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <div className="flex items-center">
+                    <div className="flex-shrink-0 h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-medium">
+                      {user.name.charAt(0)}
+                    </div>
+                    <div className="ml-4">
+                      <div className="text-sm font-medium text-gray-900">
+                        {user.name}
+                      </div>
+                      <div className="text-sm text-gray-500">{user.email}</div>
+                    </div>
+                  </div>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <span
+                    className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                      user.active
+                        ? "bg-green-100 text-green-800"
+                        : "bg-red-100 text-red-800"
+                    }`}
+                  >
+                    {user.active ? "Active" : "Inactive"}
+                  </span>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <div className="w-full bg-gray-200 rounded-full h-2.5">
+                    <div
+                      className={`h-2.5 rounded-full ${getMoodColor(
+                        user.currentMood
+                      )}`}
+                      style={{ width: `${user.currentMood}%` }}
+                    ></div>
+                  </div>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <span
+                    className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getRiskColor(
+                      user.riskLevel
+                    )}`}
+                  >
+                    {getRiskLabel(user.riskLevel)}
+                  </span>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  {user.lastActive}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                  <button
+                    onClick={() => onUserSelect(user)}
+                    className="text-indigo-600 hover:text-indigo-900 mr-3"
+                  >
+                    View
+                  </button>
+                  <button className="text-gray-600 hover:text-gray-900">
+                    Contact
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+};
+
+// AlertsContent Component
+const AlertsContent: React.FC<AlertsContentProps> = ({
+  alerts,
+  onAlertSelect,
+}) => {
+  return (
+    <div className="space-y-6">
+      <h2 className="text-lg font-medium">Alert Management</h2>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <div className="bg-white p-6 rounded-lg shadow-sm">
+          <div className="text-red-600 text-xl font-bold">
+            {alerts.filter((a) => a.status === "New").length}
+          </div>
+          <div className="text-gray-500">New Alerts</div>
+        </div>
+        <div className="bg-white p-6 rounded-lg shadow-sm">
+          <div className="text-yellow-600 text-xl font-bold">
+            {alerts.filter((a) => a.status === "In Progress").length}
+          </div>
+          <div className="text-gray-500">In Progress</div>
+        </div>
+        <div className="bg-white p-6 rounded-lg shadow-sm">
+          <div className="text-green-600 text-xl font-bold">
+            {alerts.filter((a) => a.status === "Resolved").length}
+          </div>
+          <div className="text-gray-500">Resolved</div>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-lg shadow overflow-hidden">
+        <table className="min-w-full divide-y divide-gray-200">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Type
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                User
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Description
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Status
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Time
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Actions
+              </th>
+            </tr>
+          </thead>
+          <tbody className="bg-white divide-y divide-gray-200">
+            {alerts.map((alert) => (
+              <tr key={alert.id} className="hover:bg-gray-50">
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <span
+                    className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                      alert.type === "Critical"
+                        ? "bg-red-100 text-red-800"
+                        : alert.type === "High"
+                        ? "bg-yellow-100 text-yellow-800"
+                        : "bg-blue-100 text-blue-800"
+                    }`}
+                  >
+                    {alert.type}
+                  </span>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <div className="text-sm font-medium text-gray-900">
+                    {alert.userName}
+                  </div>
+                  <div className="text-sm text-gray-500">
+                    {alert.userContact}
+                  </div>
+                </td>
+                <td className="px-6 py-4">
+                  <div className="text-sm text-gray-900">
+                    {alert.description}
+                  </div>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <span
+                    className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                      alert.status === "New"
+                        ? "bg-red-100 text-red-800"
+                        : alert.status === "In Progress"
+                        ? "bg-yellow-100 text-yellow-800"
+                        : "bg-green-100 text-green-800"
+                    }`}
+                  >
+                    {alert.status}
+                  </span>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  {alert.timestamp}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                  <button
+                    onClick={() => onAlertSelect(alert)}
+                    className="text-indigo-600 hover:text-indigo-900"
+                  >
+                    View Details
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+};
+
+// ProfessionalsContent Component
+const ProfessionalsContent: React.FC<ProfessionalsContentProps> = ({
+  professionals,
+  onProfessionalSelect,
+  onAddProfessional,
+}) => {
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h2 className="text-lg font-medium">Professional Management</h2>
+        <button
+          onClick={onAddProfessional}
+          className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors"
+        >
+          Add New Professional
+        </button>
+      </div>
+
+      <div className="bg-white rounded-lg shadow overflow-hidden">
+        <table className="min-w-full divide-y divide-gray-200">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Professional
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Specialty
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Status
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Assignments
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Verified
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Actions
+              </th>
+            </tr>
+          </thead>
+          <tbody className="bg-white divide-y divide-gray-200">
+            {professionals.map((professional) => (
+              <tr key={professional.id} className="hover:bg-gray-50">
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <div className="flex items-center">
+                    <div className="flex-shrink-0 h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-medium">
+                      {professional.name.charAt(0)}
+                    </div>
+                    <div className="ml-4">
+                      <div className="text-sm font-medium text-gray-900">
+                        {professional.name}
+                      </div>
+                      <div className="text-sm text-gray-500">
+                        {professional.email}
+                      </div>
+                    </div>
+                  </div>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <div className="text-sm text-gray-900">
+                    {professional.specialty}
+                  </div>
+                  <div className="text-sm text-gray-500">
+                    {professional.hospital}
+                  </div>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <span
+                    className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                      professional.availabilityStatus === "Available"
+                        ? "bg-green-100 text-green-800"
+                        : "bg-red-100 text-red-800"
+                    }`}
+                  >
+                    {professional.availabilityStatus}
+                  </span>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  {professional.currentAssignments.length}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <span
+                    className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                      professional.verified
+                        ? "bg-green-100 text-green-800"
+                        : "bg-yellow-100 text-yellow-800"
+                    }`}
+                  >
+                    {professional.verified ? "Verified" : "Pending"}
+                  </span>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                  <button
+                    onClick={() => onProfessionalSelect(professional)}
+                    className="text-indigo-600 hover:text-indigo-900"
+                  >
+                    View Profile
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+};
+
+// ChatsContent Component
+const ChatsContent: React.FC = () => {
+  return (
+    <div className="space-y-6">
+      <h2 className="text-lg font-medium">Chat Monitoring</h2>
+      <div className="bg-white rounded-lg shadow-sm p-6">
+        <p className="text-gray-500">
+          Chat monitoring functionality will be implemented soon.
+        </p>
+      </div>
+    </div>
+  );
+};
+
+// ContentManagementContent Component
+const ContentManagementContent: React.FC = () => {
+  return (
+    <div className="space-y-6">
+      <h2 className="text-lg font-medium">Content Management</h2>
+      <div className="bg-white rounded-lg shadow-sm p-6">
+        <p className="text-gray-500">
+          Content management functionality will be implemented soon.
+        </p>
+      </div>
+    </div>
+  );
+};
+
+// AnalyticsContent Component
+const AnalyticsContent: React.FC<AnalyticsContentProps> = ({ analytics }) => {
+  return (
+    <div className="space-y-6">
+      <h2 className="text-lg font-medium">Analytics & Reports</h2>
+
+      {analytics ? (
+        <>
+          <div className="bg-white rounded-lg shadow-sm p-6">
+            <h3 className="text-md font-medium mb-4">Overall Sentiment</h3>
+            <div className="flex items-end space-x-2">
+              <div className="text-3xl font-bold">
+                {analytics.overallSentiment}
+              </div>
+              <div className="text-sm text-gray-500">/5</div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-lg shadow-sm p-6">
+            <h3 className="text-md font-medium mb-4">Mood Distribution</h3>
+            <div className="space-y-4">
+              {analytics.moodDistribution.map((mood, idx) => (
+                <div key={idx}>
+                  <div className="flex justify-between text-sm">
+                    <span>{mood.label}</span>
+                    <span>{mood.percentage}%</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2.5 mt-1">
+                    <div
+                      className={`h-2.5 rounded-full ${
+                        mood.label === "Excellent"
+                          ? "bg-green-500"
+                          : mood.label === "Normal"
+                          ? "bg-yellow-500"
+                          : "bg-red-500"
+                      }`}
+                      style={{ width: `${mood.percentage}%` }}
+                    ></div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="bg-white rounded-lg shadow-sm p-6">
+            <h3 className="text-md font-medium mb-4">Recent Activity</h3>
+            <div className="space-y-3">
+              {analytics.recentActivity.map((activity, idx) => (
+                <div key={idx} className="flex items-start">
+                  <div
+                    className={`h-8 w-8 rounded-full flex items-center justify-center ${
+                      activity.type === "login"
+                        ? "bg-blue-100 text-blue-600"
+                        : activity.type === "mood"
+                        ? "bg-green-100 text-green-600"
+                        : activity.type === "assessment"
+                        ? "bg-yellow-100 text-yellow-600"
+                        : "bg-purple-100 text-purple-600"
+                    }`}
+                  >
+                    {activity.type.charAt(0).toUpperCase()}
+                  </div>
+                  <div className="ml-3 flex-1">
+                    <p className="text-sm font-medium">
+                      {activity.user} - {activity.action}
+                    </p>
+                    <p className="text-xs text-gray-500">{activity.time}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </>
+      ) : (
+        <div className="bg-white rounded-lg shadow-sm p-6">
+          <p className="text-gray-500">No analytics data available</p>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// SettingsContent Component
+const SettingsContent: React.FC = () => {
+  return (
+    <div className="space-y-6">
+      <h2 className="text-lg font-medium">System Settings</h2>
+      <div className="bg-white rounded-lg shadow-sm p-6">
+        <p className="text-gray-500">
+          Settings functionality will be implemented soon.
+        </p>
+      </div>
+    </div>
+  );
+};
+
+// HelpContent Component
+const HelpContent: React.FC = () => {
+  return (
+    <div className="space-y-6">
+      <h2 className="text-lg font-medium">Help & Documentation</h2>
+      <div className="bg-white rounded-lg shadow-sm p-6">
+        <p className="text-gray-500">
+          Help and documentation will be available soon.
+        </p>
+      </div>
+    </div>
+  );
+};
+
+// AddProfessionalModal Component
+const AddProfessionalModal: React.FC<AddProfessionalModalProps> = ({
+  onClose,
+  onSave,
+}) => {
+  const [formData, setFormData] = useState<ProfessionalFormData>({
+    name: "",
+    email: "",
+    phone: "",
+    hospital: "",
+    specialty: "",
+    specializations: [],
+    languages: [],
+    education: "",
+    licenseNumber: "",
+    availableHours: "",
+    profileImage: null,
+    licenseCertificate: null,
+  });
+
+  const [specializationInput, setSpecializationInput] = useState("");
+  const [languageInput, setLanguageInput] = useState("");
+
+  const handleInputChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => {
+    const { name, value } = e.target;
+    setFormData({ ...formData, [name]: value });
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, files } = e.target;
+    if (files && files.length > 0) {
+      setFormData({ ...formData, [name]: files[0] });
+    }
+  };
+
+  const addSpecialization = () => {
+    if (specializationInput.trim()) {
+      setFormData({
+        ...formData,
+        specializations: [
+          ...formData.specializations,
+          specializationInput.trim(),
+        ],
+      });
+      setSpecializationInput("");
+    }
+  };
+
+  const removeSpecialization = (index: number) => {
+    const updated = [...formData.specializations];
+    updated.splice(index, 1);
+    setFormData({ ...formData, specializations: updated });
+  };
+
+  const addLanguage = () => {
+    if (languageInput.trim()) {
+      setFormData({
+        ...formData,
+        languages: [...formData.languages, languageInput.trim()],
+      });
+      setLanguageInput("");
+    }
+  };
+
+  const removeLanguage = (index: number) => {
+    const updated = [...formData.languages];
+    updated.splice(index, 1);
+    setFormData({ ...formData, languages: updated });
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSave(formData);
+  };
+
+  return (
+    <Modal title="Add New Professional" onClose={onClose}>
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700">
+              Full Name*
+            </label>
+            <input
+              type="text"
+              name="name"
+              required
+              value={formData.name}
+              onChange={handleInputChange}
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700">
+              Email*
+            </label>
+            <input
+              type="email"
+              name="email"
+              required
+              value={formData.email}
+              onChange={handleInputChange}
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700">
+              Phone Number*
+            </label>
+            <input
+              type="text"
+              name="phone"
+              required
+              value={formData.phone}
+              onChange={handleInputChange}
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700">
+              Hospital/Clinic*
+            </label>
+            <input
+              type="text"
+              name="hospital"
+              required
+              value={formData.hospital}
+              onChange={handleInputChange}
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700">
+              Specialty*
+            </label>
+            <input
+              type="text"
+              name="specialty"
+              required
+              value={formData.specialty}
+              onChange={handleInputChange}
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700">
+              License Number*
+            </label>
+            <input
+              type="text"
+              name="licenseNumber"
+              required
+              value={formData.licenseNumber}
+              onChange={handleInputChange}
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+            />
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700">
+            Specializations
+          </label>
+          <div className="flex space-x-2 mt-1">
+            <input
+              type="text"
+              value={specializationInput}
+              onChange={(e) => setSpecializationInput(e.target.value)}
+              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+              placeholder="E.g., Cognitive Behavioral Therapy"
+            />
+            <button
+              type="button"
+              onClick={addSpecialization}
+              className="px-3 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
+            >
+              Add
+            </button>
+          </div>
+          <div className="flex flex-wrap gap-2 mt-2">
+            {formData.specializations.map((spec, index) => (
+              <div
+                key={index}
+                className="bg-indigo-100 text-indigo-800 px-2 py-1 rounded-full text-sm flex items-center"
+              >
+                <span>{spec}</span>
+                <button
+                  type="button"
+                  onClick={() => removeSpecialization(index)}
+                  className="ml-1 text-indigo-600 hover:text-indigo-800"
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700">
+            Languages
+          </label>
+          <div className="flex space-x-2 mt-1">
+            <input
+              type="text"
+              value={languageInput}
+              onChange={(e) => setLanguageInput(e.target.value)}
+              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+              placeholder="E.g., English"
+            />
+            <button
+              type="button"
+              onClick={addLanguage}
+              className="px-3 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
+            >
+              Add
+            </button>
+          </div>
+          <div className="flex flex-wrap gap-2 mt-2">
+            {formData.languages.map((lang, index) => (
+              <div
+                key={index}
+                className="bg-indigo-100 text-indigo-800 px-2 py-1 rounded-full text-sm flex items-center"
+              >
+                <span>{lang}</span>
+                <button
+                  type="button"
+                  onClick={() => removeLanguage(index)}
+                  className="ml-1 text-indigo-600 hover:text-indigo-800"
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700">
+            Education*
+          </label>
+          <textarea
+            name="education"
+            required
+            value={formData.education}
+            onChange={handleInputChange}
+            rows={3}
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+            placeholder="E.g., MD in Psychiatry, University of Colombo"
+          ></textarea>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700">
+            Available Hours*
+          </label>
+          <input
+            type="text"
+            name="availableHours"
+            required
+            value={formData.availableHours}
+            onChange={handleInputChange}
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+            placeholder="E.g., 9 AM - 5 PM, Monday to Friday"
+          />
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700">
+              Profile Photo
+            </label>
+            <input
+              type="file"
+              name="profileImage"
+              onChange={handleFileChange}
+              className="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+              accept="image/*"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700">
+              License Certificate
+            </label>
+            <input
+              type="file"
+              name="licenseCertificate"
+              onChange={handleFileChange}
+              className="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+              accept=".pdf,.jpg,.jpeg,.png"
+            />
+          </div>
+        </div>
+
+        <div className="flex justify-end space-x-3 pt-4 border-t">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2 bg-white border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            className="px-4 py-2 bg-indigo-600 border border-transparent rounded-md shadow-sm text-sm font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+          >
+            Add Professional
+          </button>
+        </div>
+      </form>
+    </Modal>
+  );
+};
 
 // -------------------------
 // Main Admin Dashboard Component
@@ -521,16 +1498,71 @@ const AdminDashboard: React.FC = () => {
   const [showAddProfessionalModal, setShowAddProfessionalModal] =
     useState(false);
 
-  // Simulate API calls
+  // Updated to fetch real professionals from the API
   useEffect(() => {
-    setTimeout(() => {
-      setUsers(mockUsers);
-      setAlerts(mockAlerts);
-      setProfessionals(mockProfessionals);
-      setAnalytics(mockAnalytics);
-      setNotifications(mockNotifications);
-      setLoading(false);
-    }, 1000);
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        // Fetch professionals from API
+        const professionalsResponse = await fetch(
+          "http://localhost:8000/api/professionals/"
+        );
+
+        if (!professionalsResponse.ok) {
+          throw new Error(
+            `Failed to fetch professionals: ${professionalsResponse.status}`
+          );
+        }
+
+        const professionalsData = await professionalsResponse.json();
+
+        // Map API data to ProfessionalData interface
+        const mappedProfessionals: ProfessionalData[] = professionalsData.map(
+          (prof: ApiProfessional) => ({
+            id:
+              typeof prof._id === "string"
+                ? parseInt(prof._id.replace(/\D/g, ""), 10) || prof._id
+                : prof._id,
+            name: prof.name,
+            email: prof.email,
+            phone: prof.phone || "",
+            hospital: prof.hospital || "",
+            active: prof.active !== undefined ? prof.active : true,
+            joinDate: prof.joinDate || new Date().toISOString().split("T")[0],
+            verified: prof.verified !== undefined ? prof.verified : false,
+            specialty: prof.specialty || "",
+            specializations: prof.specializations || [],
+            languages: prof.languages || [],
+            education: prof.education || "",
+            licenseNumber: prof.licenseNumber || "",
+            currentAssignments: prof.currentAssignments || [],
+            availabilityStatus: prof.availabilityStatus || "Available",
+            availableHours: prof.availableHours || "9 AM - 5 PM",
+            nextAvailableSlot: "",
+          })
+        );
+
+        setProfessionals(mappedProfessionals);
+
+        // For completeness, still fetch other data
+        setUsers(mockUsers);
+        setAlerts(mockAlerts);
+        setAnalytics(mockAnalytics);
+        setNotifications(mockNotifications);
+      } catch (error) {
+        console.error("Error fetching data:", error);
+        // Fallback to mock data in case of error
+        setProfessionals(mockProfessionals);
+        setUsers(mockUsers);
+        setAlerts(mockAlerts);
+        setAnalytics(mockAnalytics);
+        setNotifications(mockNotifications);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
   }, []);
 
   // Function to handle adding a new professional with improved error handling
@@ -598,35 +1630,45 @@ const AdminDashboard: React.FC = () => {
         throw new Error(result.detail || `Server error: ${response.status}`);
       }
 
-      // Create new professional object
-      const newProfessionalId =
-        professionals.length > 0
-          ? Math.max(...professionals.map((p) => p.id)) + 1
-          : 1;
+      // After successful creation, refetch the professionals list to get updated data
+      const refreshResponse = await fetch(
+        "http://localhost:8000/api/professionals/"
+      );
+      if (!refreshResponse.ok) {
+        throw new Error(
+          `Failed to fetch professionals: ${refreshResponse.status}`
+        );
+      }
 
-      // Add the new professional to the list
-      const newProfessional: ProfessionalData = {
-        id: newProfessionalId,
-        name: professionalData.name,
-        email: professionalData.email,
-        phone: professionalData.phone,
-        hospital: professionalData.hospital,
-        active: true,
-        joinDate: new Date().toISOString().split("T")[0],
-        verified: false,
-        specialty: professionalData.specialty,
-        specializations: professionalData.specializations,
-        languages: professionalData.languages,
-        education: professionalData.education,
-        licenseNumber: professionalData.licenseNumber,
-        currentAssignments: [],
-        availabilityStatus: "Available",
-        availableHours: professionalData.availableHours,
-        nextAvailableSlot: "",
-      };
+      const refreshData = await refreshResponse.json();
 
-      // Update professionals state
-      setProfessionals([...professionals, newProfessional]);
+      // Map API data to ProfessionalData interface
+      const mappedProfessionals: ProfessionalData[] = refreshData.map(
+        (prof: ApiProfessional) => ({
+          id:
+            typeof prof._id === "string"
+              ? parseInt(prof._id.replace(/\D/g, ""), 10) || prof._id
+              : prof._id,
+          name: prof.name,
+          email: prof.email,
+          phone: prof.phone || "",
+          hospital: prof.hospital || "",
+          active: prof.active !== undefined ? prof.active : true,
+          joinDate: prof.joinDate || new Date().toISOString().split("T")[0],
+          verified: prof.verified !== undefined ? prof.verified : false,
+          specialty: prof.specialty || "",
+          specializations: prof.specializations || [],
+          languages: prof.languages || [],
+          education: prof.education || "",
+          licenseNumber: prof.licenseNumber || "",
+          currentAssignments: prof.currentAssignments || [],
+          availabilityStatus: prof.availabilityStatus || "Available",
+          availableHours: prof.availableHours || "9 AM - 5 PM",
+          nextAvailableSlot: "",
+        })
+      );
+
+      setProfessionals(mappedProfessionals);
       setShowAddProfessionalModal(false);
 
       // Show success message
@@ -1209,26 +2251,32 @@ const AdminDashboard: React.FC = () => {
                 Current Assignments
               </h4>
               <div className="space-y-2">
-                {selectedProfessional.currentAssignments.map(
-                  (assignment: Assignment, idx: number) => (
-                    <div
-                      key={idx}
-                      className="flex justify-between items-center text-sm"
-                    >
-                      <span>{assignment.userName}</span>
-                      <span
-                        className={`px-2 py-1 rounded-full text-xs ${
-                          assignment.status === "Active"
-                            ? "bg-green-100 text-green-800"
-                            : assignment.status === "Pending"
-                            ? "bg-yellow-100 text-yellow-800"
-                            : "bg-blue-100 text-blue-800"
-                        }`}
+                {selectedProfessional.currentAssignments.length > 0 ? (
+                  selectedProfessional.currentAssignments.map(
+                    (assignment: Assignment, idx: number) => (
+                      <div
+                        key={idx}
+                        className="flex justify-between items-center text-sm"
                       >
-                        {assignment.status}
-                      </span>
-                    </div>
+                        <span>{assignment.userName}</span>
+                        <span
+                          className={`px-2 py-1 rounded-full text-xs ${
+                            assignment.status === "Active"
+                              ? "bg-green-100 text-green-800"
+                              : assignment.status === "Pending"
+                              ? "bg-yellow-100 text-yellow-800"
+                              : "bg-blue-100 text-blue-800"
+                          }`}
+                        >
+                          {assignment.status}
+                        </span>
+                      </div>
+                    )
                   )
+                ) : (
+                  <p className="text-sm text-gray-500">
+                    No current assignments
+                  </p>
                 )}
               </div>
             </div>
@@ -1252,10 +2300,12 @@ const AdminDashboard: React.FC = () => {
                   <span className="text-gray-500">Available Hours:</span>{" "}
                   {selectedProfessional.availableHours}
                 </p>
-                <p>
-                  <span className="text-gray-500">Next Available:</span>{" "}
-                  {selectedProfessional.nextAvailableSlot}
-                </p>
+                {selectedProfessional.nextAvailableSlot && (
+                  <p>
+                    <span className="text-gray-500">Next Available:</span>{" "}
+                    {selectedProfessional.nextAvailableSlot}
+                  </p>
+                )}
               </div>
             </div>
 
@@ -1279,1406 +2329,6 @@ const AdminDashboard: React.FC = () => {
         />
       )}
     </div>
-  );
-};
-
-// -------------------------
-// Reusable Components
-// -------------------------
-const SidebarLink: React.FC<SidebarLinkProps> = ({
-  icon,
-  title,
-  isActive,
-  onClick,
-  collapsed,
-}) => {
-  return (
-    <a
-      href="#"
-      className={`flex items-center px-4 py-3 ${
-        isActive
-          ? "bg-indigo-700 text-white"
-          : "text-indigo-100 hover:bg-indigo-700"
-      } transition-colors rounded-md mx-2 my-1`}
-      onClick={(e) => {
-        e.preventDefault();
-        onClick();
-      }}
-    >
-      <span className="mr-3">{icon}</span>
-      {!collapsed && <span>{title}</span>}
-    </a>
-  );
-};
-
-const Modal: React.FC<ModalProps> = ({ title, children, onClose }) => {
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-3xl max-h-[90vh] overflow-hidden">
-        <div className="px-6 py-4 border-b flex items-center justify-between">
-          <h3 className="text-lg font-medium">{title}</h3>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-500 focus:outline-none"
-          >
-            <X size={20} />
-          </button>
-        </div>
-        <div className="px-6 py-4 overflow-y-auto max-h-[calc(90vh-130px)]">
-          {children}
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const StatCard: React.FC<StatCardProps> = ({
-  title,
-  value,
-  change,
-  icon,
-  positive,
-}) => {
-  return (
-    <div className="bg-white rounded-lg shadow p-6">
-      <div className="flex items-center justify-between">
-        <h3 className="text-gray-500 text-sm font-medium">{title}</h3>
-        <div className="bg-indigo-50 p-2 rounded">{icon}</div>
-      </div>
-      <div className="mt-4">
-        <span className="text-2xl font-bold">{value}</span>
-        <span
-          className={`ml-2 text-sm font-medium ${
-            positive ? "text-green-600" : "text-red-600"
-          }`}
-        >
-          {change}
-        </span>
-      </div>
-    </div>
-  );
-};
-
-const QuickActionCard: React.FC<QuickActionCardProps> = ({
-  title,
-  icon,
-  onClick,
-}) => {
-  return (
-    <button
-      className="flex flex-col items-center p-4 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition-colors"
-      onClick={onClick}
-    >
-      <div className="mb-2">{icon}</div>
-      <span className="text-sm font-medium text-indigo-700">{title}</span>
-    </button>
-  );
-};
-
-// -------------------------
-// Tab Components
-// -------------------------
-const DashboardContent: React.FC<DashboardContentProps> = ({
-  analytics,
-  users,
-  alerts,
-  professionals,
-}) => {
-  return (
-    <div className="space-y-6">
-      {/* Stats Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard
-          title="Total Users"
-          value={users.length.toString()}
-          change="+12%"
-          icon={<Users size={20} className="text-blue-500" />}
-          positive={true}
-        />
-        <StatCard
-          title="Active Alerts"
-          value={alerts
-            .filter((a) => a.status === "New" || a.status === "In Progress")
-            .length.toString()}
-          change="-5%"
-          icon={<AlertCircle size={20} className="text-red-500" />}
-          positive={false}
-        />
-        <StatCard
-          title="Professionals"
-          value={professionals.length.toString()}
-          change="+3%"
-          icon={<User size={20} className="text-green-500" />}
-          positive={true}
-        />
-        <StatCard
-          title="Sentiment Index"
-          value={analytics ? analytics.overallSentiment.toFixed(1) : "0"}
-          change="+0.2"
-          icon={<TrendingUp size={20} className="text-purple-500" />}
-          positive={true}
-        />
-      </div>
-
-      {/* Recent Alerts */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <h2 className="text-lg font-medium mb-4">Recent Alerts</h2>
-        <div className="space-y-4">
-          {alerts
-            .filter(
-              (alert) =>
-                alert.severity === "Critical" || alert.severity === "High"
-            )
-            .slice(0, 5)
-            .map((alert, idx) => (
-              <div key={idx} className="flex">
-                <div className="flex-shrink-0">
-                  <div className="h-10 w-10 rounded-full bg-red-100 flex items-center justify-center">
-                    <AlertCircle size={16} className="text-red-600" />
-                  </div>
-                </div>
-                <div className="flex-1 ml-4">
-                  <h3 className="text-sm font-medium text-red-800">
-                    {alert.type} Alert for {alert.userName}
-                  </h3>
-                  <p className="text-sm text-red-700 mt-1">
-                    {alert.description}
-                  </p>
-                  <div className="mt-2 flex space-x-3">
-                    <button className="text-xs font-medium text-red-800 hover:text-red-900">
-                      View Details
-                    </button>
-                    <button className="text-xs font-medium text-red-800 hover:text-red-900">
-                      Assign
-                    </button>
-                    <button className="text-xs font-medium text-red-800 hover:text-red-900">
-                      Respond
-                    </button>
-                  </div>
-                </div>
-                <div className="ml-4 flex-shrink-0 flex flex-col items-end">
-                  <span className="text-xs text-red-700">
-                    {alert.timestamp}
-                  </span>
-                  <span className="mt-1 px-2 py-1 rounded-full text-xs bg-red-100 text-red-800">
-                    {alert.status}
-                  </span>
-                </div>
-              </div>
-            ))}
-        </div>
-        <div className="mt-4">
-          <button className="text-sm text-indigo-600 hover:text-indigo-500 font-medium">
-            View All Alerts →
-          </button>
-        </div>
-      </div>
-
-      {/* Activity & Sentiment Chart */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* User Activity */}
-        <div className="bg-white rounded-lg shadow">
-          <div className="p-6">
-            <h2 className="text-lg font-medium mb-4">Recent User Activity</h2>
-            <div className="space-y-4">
-              {analytics &&
-                analytics.recentActivity.slice(0, 5).map((activity, idx) => (
-                  <div key={idx} className="flex">
-                    <div className="mr-4 flex-shrink-0">
-                      <div className="h-8 w-8 rounded-full bg-indigo-100 flex items-center justify-center">
-                        {activity.type === "login" && (
-                          <User size={16} className="text-indigo-600" />
-                        )}
-                        {activity.type === "assessment" && (
-                          <FileText size={16} className="text-indigo-600" />
-                        )}
-                        {activity.type === "chat" && (
-                          <MessageSquare
-                            size={16}
-                            className="text-indigo-600"
-                          />
-                        )}
-                        {activity.type === "mood" && (
-                          <TrendingUp size={16} className="text-indigo-600" />
-                        )}
-                      </div>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium">{activity.user}</p>
-                      <p className="text-sm text-gray-500">{activity.action}</p>
-                      <p className="text-xs text-gray-400 mt-1">
-                        {activity.time}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-            </div>
-            <div className="mt-4">
-              <button className="text-sm text-indigo-600 hover:text-indigo-500 font-medium">
-                View All Activity →
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Mood Distribution */}
-        <div className="bg-white rounded-lg shadow">
-          <div className="p-6">
-            <h2 className="text-lg font-medium mb-4">User Mood Distribution</h2>
-            <div className="space-y-3">
-              {analytics &&
-                analytics.moodDistribution.map((mood, idx) => (
-                  <div key={idx}>
-                    <div className="flex justify-between items-center mb-1">
-                      <span className="text-sm font-medium text-gray-700">
-                        {mood.label}
-                      </span>
-                      <span className="text-sm text-gray-500">
-                        {mood.percentage}%
-                      </span>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2.5">
-                      <div
-                        className={`h-2.5 rounded-full ${getMoodBarColor(
-                          mood.label
-                        )}`}
-                        style={{ width: `${mood.percentage}%` }}
-                      ></div>
-                    </div>
-                  </div>
-                ))}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Quick Actions */}
-      <div className="bg-white rounded-lg shadow">
-        <div className="p-6">
-          <h2 className="text-lg font-medium mb-4">Quick Actions</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <QuickActionCard
-              title="Add Professional"
-              icon={<User size={24} className="text-indigo-600" />}
-              onClick={() => console.log("Add Professional")}
-            />
-            <QuickActionCard
-              title="Manage Content"
-              icon={<FileText size={24} className="text-indigo-600" />}
-              onClick={() => console.log("Manage Content")}
-            />
-            <QuickActionCard
-              title="Generate Report"
-              icon={<BarChart2 size={24} className="text-indigo-600" />}
-              onClick={() => console.log("Generate Report")}
-            />
-            <QuickActionCard
-              title="System Settings"
-              icon={<Settings size={24} className="text-indigo-600" />}
-              onClick={() => console.log("System Settings")}
-            />
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const UsersContent: React.FC<UsersContentProps> = ({ users, onUserSelect }) => {
-  return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h2 className="text-lg font-medium">User Management</h2>
-        <button className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors flex items-center">
-          <Plus size={16} className="mr-2" /> Add New User
-        </button>
-      </div>
-
-      <div className="bg-white rounded-lg shadow overflow-hidden">
-        <div className="p-4 border-b bg-gray-50">
-          <div className="flex justify-between items-center">
-            <h3 className="font-medium">All Users</h3>
-            <div className="flex space-x-2">
-              <button className="px-3 py-1 bg-white border border-gray-300 rounded-md text-sm hover:bg-gray-50">
-                Filter
-              </button>
-              <button className="px-3 py-1 bg-white border border-gray-300 rounded-md text-sm hover:bg-gray-50">
-                Export
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Name
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Risk Level
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Last Active
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Assigned To
-                </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {users.map((user, idx) => (
-                <tr key={idx} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center">
-                      <div className="flex-shrink-0 h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-medium">
-                        {user.name.charAt(0)}
-                      </div>
-                      <div className="ml-4">
-                        <div className="text-sm font-medium text-gray-900">
-                          {user.name}
-                        </div>
-                        <div className="text-sm text-gray-500">
-                          {user.email}
-                        </div>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span
-                      className={`px-2 py-1 rounded-full text-xs ${
-                        user.active
-                          ? "bg-green-100 text-green-800"
-                          : "bg-red-100 text-red-800"
-                      }`}
-                    >
-                      {user.active ? "Active" : "Inactive"}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span
-                      className={`px-2 py-1 rounded-full text-xs ${getRiskColor(
-                        user.riskLevel
-                      )}`}
-                    >
-                      {getRiskLabel(user.riskLevel)}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {user.lastActive}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {user.assignedTo || "Not Assigned"}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <button
-                      className="text-indigo-600 hover:text-indigo-900 mr-3"
-                      onClick={() => onUserSelect(user)}
-                    >
-                      <Eye size={16} />
-                    </button>
-                    <button className="text-gray-600 hover:text-gray-900 mr-3">
-                      <Edit size={16} />
-                    </button>
-                    <button className="text-red-600 hover:text-red-900">
-                      <Trash2 size={16} />
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        <div className="p-4 border-t bg-gray-50 flex items-center justify-between">
-          <div className="text-sm text-gray-700">
-            Showing <span className="font-medium">1</span> to{" "}
-            <span className="font-medium">10</span> of{" "}
-            <span className="font-medium">{users.length}</span> users
-          </div>
-          <div className="flex space-x-2">
-            <button className="px-3 py-1 bg-white border border-gray-300 rounded-md text-sm hover:bg-gray-50">
-              Previous
-            </button>
-            <button className="px-3 py-1 bg-indigo-600 text-white border border-indigo-600 rounded-md text-sm hover:bg-indigo-700">
-              1
-            </button>
-            <button className="px-3 py-1 bg-white border border-gray-300 rounded-md text-sm hover:bg-gray-50">
-              2
-            </button>
-            <button className="px-3 py-1 bg-white border border-gray-300 rounded-md text-sm hover:bg-gray-50">
-              Next
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const AlertsContent: React.FC<AlertsContentProps> = ({
-  alerts,
-  onAlertSelect,
-}) => {
-  return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h2 className="text-lg font-medium">Alert Management</h2>
-        <div className="flex space-x-2">
-          <button className="px-3 py-1 bg-white border border-gray-300 rounded-md text-sm hover:bg-gray-50">
-            Filter
-          </button>
-          <button className="px-3 py-1 bg-white border border-gray-300 rounded-md text-sm hover:bg-gray-50">
-            Export
-          </button>
-        </div>
-      </div>
-
-      {/* Alert Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex justify-between items-center">
-          <div>
-            <h3 className="text-sm font-medium text-red-800">
-              Critical Alerts
-            </h3>
-            <p className="text-2xl font-bold text-red-800 mt-1">
-              {alerts.filter((a) => a.severity === "Critical").length}
-            </p>
-          </div>
-          <div className="bg-red-100 p-3 rounded-full">
-            <AlertCircle className="h-6 w-6 text-red-600" />
-          </div>
-        </div>
-
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 flex justify-between items-center">
-          <div>
-            <h3 className="text-sm font-medium text-yellow-800">High Alerts</h3>
-            <p className="text-2xl font-bold text-yellow-800 mt-1">
-              {alerts.filter((a) => a.severity === "High").length}
-            </p>
-          </div>
-          <div className="bg-yellow-100 p-3 rounded-full">
-            <AlertCircle className="h-6 w-6 text-yellow-600" />
-          </div>
-        </div>
-
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex justify-between items-center">
-          <div>
-            <h3 className="text-sm font-medium text-blue-800">Medium Alerts</h3>
-            <p className="text-2xl font-bold text-blue-800 mt-1">
-              {alerts.filter((a) => a.severity === "Medium").length}
-            </p>
-          </div>
-          <div className="bg-blue-100 p-3 rounded-full">
-            <AlertCircle className="h-6 w-6 text-blue-600" />
-          </div>
-        </div>
-      </div>
-
-      {/* Alert List */}
-      <div className="bg-white rounded-lg shadow overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Alert Type
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  User
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Severity
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Time
-                </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {alerts.map((alert, idx) => (
-                <tr key={idx} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center">
-                      <div
-                        className={`flex-shrink-0 h-8 w-8 rounded-full flex items-center justify-center ${getAlertIconBgColor(
-                          alert.type
-                        )}`}
-                      >
-                        <AlertCircle
-                          className={`h-4 w-4 ${getAlertIconColor(alert.type)}`}
-                        />
-                      </div>
-                      <div className="ml-3 text-sm font-medium text-gray-900">
-                        {alert.type}
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {alert.userName}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span
-                      className={`px-2 py-1 rounded-full text-xs ${
-                        alert.severity === "Critical"
-                          ? "bg-red-100 text-red-800"
-                          : alert.severity === "High"
-                          ? "bg-yellow-100 text-yellow-800"
-                          : alert.severity === "Medium"
-                          ? "bg-blue-100 text-blue-800"
-                          : "bg-green-100 text-green-800"
-                      }`}
-                    >
-                      {alert.severity}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span
-                      className={`px-2 py-1 rounded-full text-xs ${
-                        alert.status === "New"
-                          ? "bg-red-100 text-red-800"
-                          : alert.status === "In Progress"
-                          ? "bg-yellow-100 text-yellow-800"
-                          : "bg-green-100 text-green-800"
-                      }`}
-                    >
-                      {alert.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {alert.timestamp}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <button
-                      className="text-indigo-600 hover:text-indigo-900 mr-3"
-                      onClick={() => onAlertSelect(alert)}
-                    >
-                      <Eye size={16} />
-                    </button>
-                    <button className="text-yellow-600 hover:text-yellow-900 mr-3">
-                      <User size={16} />
-                    </button>
-                    <button className="text-red-600 hover:text-red-900">
-                      <Bell size={16} />
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        <div className="p-4 border-t bg-gray-50 flex items-center justify-between">
-          <div className="text-sm text-gray-700">
-            Showing <span className="font-medium">1</span> to{" "}
-            <span className="font-medium">10</span> of{" "}
-            <span className="font-medium">{alerts.length}</span> alerts
-          </div>
-          <div className="flex space-x-2">
-            <button className="px-3 py-1 bg-white border border-gray-300 rounded-md text-sm hover:bg-gray-50">
-              Previous
-            </button>
-            <button className="px-3 py-1 bg-indigo-600 text-white border border-indigo-600 rounded-md text-sm hover:bg-gray-50">
-              1
-            </button>
-            <button className="px-3 py-1 bg-white border border-gray-300 rounded-md text-sm hover:bg-gray-50">
-              2
-            </button>
-            <button className="px-3 py-1 bg-white border border-gray-300 rounded-md text-sm hover:bg-gray-50">
-              Next
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const ProfessionalsContent: React.FC<ProfessionalsContentProps> = ({
-  professionals,
-  onProfessionalSelect,
-  onAddProfessional,
-}) => {
-  return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h2 className="text-lg font-medium">Professional Management</h2>
-        <button
-          className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors flex items-center"
-          onClick={onAddProfessional}
-        >
-          <Plus size={16} className="mr-2" /> Add New Professional
-        </button>
-      </div>
-
-      <div className="bg-white rounded-lg shadow overflow-hidden">
-        <div className="p-4 border-b bg-gray-50">
-          <div className="flex justify-between items-center">
-            <h3 className="font-medium">All Professionals</h3>
-            <div className="flex space-x-2">
-              <button className="px-3 py-1 bg-white border border-gray-300 rounded-md text-sm hover:bg-gray-50">
-                Filter
-              </button>
-              <button className="px-3 py-1 bg-white border border-gray-300 rounded-md text-sm hover:bg-gray-50">
-                Export
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Name
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Specialty
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Hospital
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Assigned Users
-                </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {professionals.map((professional, idx) => (
-                <tr key={idx} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center">
-                      <div className="flex-shrink-0 h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-medium">
-                        {professional.name.charAt(0)}
-                      </div>
-                      <div className="ml-4">
-                        <div className="text-sm font-medium text-gray-900">
-                          {professional.name}
-                        </div>
-                        <div className="text-sm text-gray-500">
-                          {professional.email}
-                        </div>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {professional.specialty}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span
-                      className={`px-2 py-1 rounded-full text-xs ${
-                        professional.availabilityStatus === "Available"
-                          ? "bg-green-100 text-green-800"
-                          : "bg-red-100 text-red-800"
-                      }`}
-                    >
-                      {professional.availabilityStatus}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {professional.hospital}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {professional.currentAssignments.length}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <button
-                      className="text-indigo-600 hover:text-indigo-900 mr-3"
-                      onClick={() => onProfessionalSelect(professional)}
-                    >
-                      <Eye size={16} />
-                    </button>
-                    <button className="text-gray-600 hover:text-gray-900 mr-3">
-                      <Edit size={16} />
-                    </button>
-                    <button className="text-red-600 hover:text-red-900">
-                      <Trash2 size={16} />
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        <div className="p-4 border-t bg-gray-50 flex items-center justify-between">
-          <div className="text-sm text-gray-700">
-            Showing <span className="font-medium">1</span> to{" "}
-            <span className="font-medium">{professionals.length}</span> of{" "}
-            <span className="font-medium">{professionals.length}</span>{" "}
-            professionals
-          </div>
-          <div className="flex space-x-2">
-            <button className="px-3 py-1 bg-white border border-gray-300 rounded-md text-sm hover:bg-gray-50">
-              Previous
-            </button>
-            <button className="px-3 py-1 bg-indigo-600 text-white border border-indigo-600 rounded-md text-sm hover:bg-gray-50">
-              1
-            </button>
-            <button className="px-3 py-1 bg-white border border-gray-300 rounded-md text-sm hover:bg-gray-50">
-              Next
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const ChatsContent: React.FC = () => {
-  return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h2 className="text-lg font-medium">Chat Monitoring</h2>
-        <div className="flex space-x-2">
-          <button className="px-3 py-1 bg-white border border-gray-300 rounded-md text-sm hover:bg-gray-50">
-            Filter
-          </button>
-          <button className="px-3 py-1 bg-white border border-gray-300 rounded-md text-sm hover:bg-gray-50">
-            Export Logs
-          </button>
-        </div>
-      </div>
-
-      <div className="bg-white rounded-lg shadow overflow-hidden">
-        <div className="p-4 border-b bg-gray-50">
-          <div className="flex justify-between items-center">
-            <h3 className="font-medium">Recent Chats</h3>
-            <div className="flex space-x-2">
-              <button className="px-3 py-1 bg-red-100 text-red-800 rounded-md text-sm hover:bg-red-200 flex items-center">
-                <AlertCircle size={14} className="mr-1" /> Flagged Only
-              </button>
-              <button className="px-3 py-1 bg-white border border-gray-300 rounded-md text-sm hover:bg-gray-50 flex items-center">
-                <Clock size={14} className="mr-1" /> Last 24 Hours
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <div className="divide-y divide-gray-200">
-          {mockChatSessions.map((session, idx) => (
-            <div key={idx} className="p-4 hover:bg-gray-50">
-              <div className="flex justify-between items-start">
-                <div>
-                  <div className="flex items-center">
-                    <div className="flex-shrink-0 h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center">
-                      <User size={16} className="text-indigo-600" />
-                    </div>
-                    <div className="ml-3">
-                      <p className="text-sm font-medium text-gray-900">
-                        {session.participants.join(" & ")}
-                      </p>
-                      <p className="text-sm text-gray-500">
-                        {session.lastMessage}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className="text-xs text-gray-500">{session.time}</p>
-                  {session.flagged && (
-                    <span className="mt-1 inline-block px-2 py-1 rounded-full text-xs bg-red-100 text-red-800">
-                      Flagged
-                    </span>
-                  )}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const ContentManagementContent: React.FC = () => {
-  return (
-    <div className="space-y-6">
-      <h2 className="text-lg font-medium">Content Management</h2>
-      <div className="bg-white rounded-lg shadow p-4">
-        <p>Content management tools will be available here...</p>
-      </div>
-    </div>
-  );
-};
-
-const AnalyticsContent: React.FC<AnalyticsContentProps> = ({ analytics }) => {
-  return (
-    <div className="space-y-6">
-      <h2 className="text-lg font-medium">Analytics & Reports</h2>
-      <div className="bg-white rounded-lg shadow p-4">
-        <p>Overall Sentiment: {analytics ? analytics.overallSentiment : 0}</p>
-        <p>More analytics coming soon...</p>
-      </div>
-    </div>
-  );
-};
-
-const SettingsContent: React.FC = () => {
-  return (
-    <div className="space-y-6">
-      <h2 className="text-lg font-medium">System Settings</h2>
-      <div className="bg-white rounded-lg shadow p-4">
-        <p>Settings and configurations can be adjusted here.</p>
-      </div>
-    </div>
-  );
-};
-
-const HelpContent: React.FC = () => {
-  return (
-    <div className="space-y-6">
-      <h2 className="text-lg font-medium">Help & Documentation</h2>
-      <div className="bg-white rounded-lg shadow p-4">
-        <p>Find help and documentation about the system here.</p>
-      </div>
-    </div>
-  );
-};
-
-// New Add Professional Modal Component
-const AddProfessionalModal: React.FC<AddProfessionalModalProps> = ({
-  onClose,
-  onSave,
-}) => {
-  const [formData, setFormData] = useState<ProfessionalFormData>({
-    name: "",
-    email: "",
-    phone: "",
-    hospital: "",
-    specialty: "",
-    specializations: [],
-    languages: [],
-    education: "",
-    licenseNumber: "",
-    availableHours: "",
-    profileImage: null,
-    licenseCertificate: null,
-  });
-
-  const [specialization, setSpecialization] = useState("");
-  const [language, setLanguage] = useState("");
-  const [formErrors, setFormErrors] = useState<
-    Partial<Record<keyof ProfessionalFormData, string>>
-  >({});
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const profileImageRef = useRef<HTMLInputElement>(null);
-  const licenseCertificateRef = useRef<HTMLInputElement>(null);
-
-  const handleInputChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
-  ) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-
-    // Clear error when field is edited
-    if (formErrors[name as keyof ProfessionalFormData]) {
-      setFormErrors((prev) => ({ ...prev, [name]: "" }));
-    }
-  };
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, files } = e.target;
-    if (files && files.length > 0) {
-      setFormData((prev) => ({ ...prev, [name]: files[0] }));
-
-      // Clear error when field is edited
-      if (formErrors[name as keyof ProfessionalFormData]) {
-        setFormErrors((prev) => ({ ...prev, [name]: "" }));
-      }
-    }
-  };
-
-  const addSpecialization = () => {
-    if (specialization.trim()) {
-      setFormData((prev) => ({
-        ...prev,
-        specializations: [...prev.specializations, specialization.trim()],
-      }));
-      setSpecialization("");
-    }
-  };
-
-  const removeSpecialization = (index: number) => {
-    setFormData((prev) => ({
-      ...prev,
-      specializations: prev.specializations.filter((_, i) => i !== index),
-    }));
-  };
-
-  const addLanguage = () => {
-    if (language.trim()) {
-      setFormData((prev) => ({
-        ...prev,
-        languages: [...prev.languages, language.trim()],
-      }));
-      setLanguage("");
-    }
-  };
-
-  const removeLanguage = (index: number) => {
-    setFormData((prev) => ({
-      ...prev,
-      languages: prev.languages.filter((_, i) => i !== index),
-    }));
-  };
-
-  const validateForm = (): boolean => {
-    const errors: Partial<Record<keyof ProfessionalFormData, string>> = {};
-
-    if (!formData.name.trim()) errors.name = "Name is required";
-    if (!formData.email.trim()) errors.email = "Email is required";
-    else if (!/^\S+@\S+\.\S+$/.test(formData.email))
-      errors.email = "Email is invalid";
-
-    if (!formData.phone.trim()) errors.phone = "Phone number is required";
-    if (!formData.hospital.trim()) errors.hospital = "Hospital is required";
-    if (!formData.specialty.trim()) errors.specialty = "Specialty is required";
-    if (!formData.education.trim()) errors.education = "Education is required";
-    if (!formData.licenseNumber.trim())
-      errors.licenseNumber = "License number is required";
-    if (!formData.availableHours.trim())
-      errors.availableHours = "Available hours are required";
-
-    if (formData.specializations.length === 0)
-      errors.specializations = "At least one specialization is required";
-    if (formData.languages.length === 0)
-      errors.languages = "At least one language is required";
-
-    if (!formData.profileImage)
-      errors.profileImage = "Profile image is required";
-    if (!formData.licenseCertificate)
-      errors.licenseCertificate = "License certificate is required";
-
-    setFormErrors(errors);
-    return Object.keys(errors).length === 0;
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!validateForm()) return;
-
-    setIsSubmitting(true);
-
-    try {
-      await onSave(formData);
-      onClose();
-    } catch (error) {
-      console.error("Error saving professional:", error);
-      // Error is handled in the parent component
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  return (
-    <Modal title="Add New Professional" onClose={onClose}>
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Personal Information */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Full Name*
-            </label>
-            <input
-              type="text"
-              name="name"
-              value={formData.name}
-              onChange={handleInputChange}
-              className={`w-full px-3 py-2 border rounded-md ${
-                formErrors.name ? "border-red-500" : "border-gray-300"
-              }`}
-              placeholder="Dr. Full Name"
-            />
-            {formErrors.name && (
-              <p className="mt-1 text-xs text-red-500">{formErrors.name}</p>
-            )}
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Email Address*
-            </label>
-            <input
-              type="email"
-              name="email"
-              value={formData.email}
-              onChange={handleInputChange}
-              className={`w-full px-3 py-2 border rounded-md ${
-                formErrors.email ? "border-red-500" : "border-gray-300"
-              }`}
-              placeholder="doctor@hospital.lk"
-            />
-            {formErrors.email && (
-              <p className="mt-1 text-xs text-red-500">{formErrors.email}</p>
-            )}
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Phone Number*
-            </label>
-            <input
-              type="text"
-              name="phone"
-              value={formData.phone}
-              onChange={handleInputChange}
-              className={`w-full px-3 py-2 border rounded-md ${
-                formErrors.phone ? "border-red-500" : "border-gray-300"
-              }`}
-              placeholder="077-123-4567"
-            />
-            {formErrors.phone && (
-              <p className="mt-1 text-xs text-red-500">{formErrors.phone}</p>
-            )}
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Hospital/Clinic*
-            </label>
-            <input
-              type="text"
-              name="hospital"
-              value={formData.hospital}
-              onChange={handleInputChange}
-              className={`w-full px-3 py-2 border rounded-md ${
-                formErrors.hospital ? "border-red-500" : "border-gray-300"
-              }`}
-              placeholder="National Hospital of Sri Lanka"
-            />
-            {formErrors.hospital && (
-              <p className="mt-1 text-xs text-red-500">{formErrors.hospital}</p>
-            )}
-          </div>
-        </div>
-
-        {/* Professional Information */}
-        <div className="border-t pt-4 mt-4">
-          <h3 className="text-md font-medium mb-3">Professional Information</h3>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Primary Specialty*
-              </label>
-              <input
-                type="text"
-                name="specialty"
-                value={formData.specialty}
-                onChange={handleInputChange}
-                className={`w-full px-3 py-2 border rounded-md ${
-                  formErrors.specialty ? "border-red-500" : "border-gray-300"
-                }`}
-                placeholder="Psychiatry"
-              />
-              {formErrors.specialty && (
-                <p className="mt-1 text-xs text-red-500">
-                  {formErrors.specialty}
-                </p>
-              )}
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                License Number (SLMC)*
-              </label>
-              <input
-                type="text"
-                name="licenseNumber"
-                value={formData.licenseNumber}
-                onChange={handleInputChange}
-                className={`w-full px-3 py-2 border rounded-md ${
-                  formErrors.licenseNumber
-                    ? "border-red-500"
-                    : "border-gray-300"
-                }`}
-                placeholder="SLMC-12345"
-              />
-              {formErrors.licenseNumber && (
-                <p className="mt-1 text-xs text-red-500">
-                  {formErrors.licenseNumber}
-                </p>
-              )}
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Education/Qualifications*
-              </label>
-              <input
-                type="text"
-                name="education"
-                value={formData.education}
-                onChange={handleInputChange}
-                className={`w-full px-3 py-2 border rounded-md ${
-                  formErrors.education ? "border-red-500" : "border-gray-300"
-                }`}
-                placeholder="MD in Psychiatry, University of Colombo"
-              />
-              {formErrors.education && (
-                <p className="mt-1 text-xs text-red-500">
-                  {formErrors.education}
-                </p>
-              )}
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Available Hours*
-              </label>
-              <input
-                type="text"
-                name="availableHours"
-                value={formData.availableHours}
-                onChange={handleInputChange}
-                className={`w-full px-3 py-2 border rounded-md ${
-                  formErrors.availableHours
-                    ? "border-red-500"
-                    : "border-gray-300"
-                }`}
-                placeholder="9 AM - 5 PM"
-              />
-              {formErrors.availableHours && (
-                <p className="mt-1 text-xs text-red-500">
-                  {formErrors.availableHours}
-                </p>
-              )}
-            </div>
-          </div>
-
-          {/* Specializations */}
-          <div className="mt-4">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Specializations/Focus Areas*
-            </label>
-            <div className="flex">
-              <input
-                type="text"
-                value={specialization}
-                onChange={(e) => setSpecialization(e.target.value)}
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-l-md"
-                placeholder="Add a specialization (e.g., Depression, CBT)"
-              />
-              <button
-                type="button"
-                onClick={addSpecialization}
-                className="px-4 py-2 bg-indigo-600 text-white rounded-r-md hover:bg-indigo-700"
-              >
-                Add
-              </button>
-            </div>
-            {formErrors.specializations && (
-              <p className="mt-1 text-xs text-red-500">
-                {formErrors.specializations}
-              </p>
-            )}
-
-            {formData.specializations.length > 0 && (
-              <div className="mt-2 flex flex-wrap gap-2">
-                {formData.specializations.map((spec, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center bg-indigo-100 px-3 py-1 rounded-full"
-                  >
-                    <span className="text-indigo-800 text-sm">{spec}</span>
-                    <button
-                      type="button"
-                      onClick={() => removeSpecialization(index)}
-                      className="ml-1 text-indigo-600 hover:text-indigo-800"
-                    >
-                      <X size={16} />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Languages */}
-          <div className="mt-4">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Languages Spoken*
-            </label>
-            <div className="flex">
-              <input
-                type="text"
-                value={language}
-                onChange={(e) => setLanguage(e.target.value)}
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-l-md"
-                placeholder="Add a language (e.g., Sinhala, English)"
-              />
-              <button
-                type="button"
-                onClick={addLanguage}
-                className="px-4 py-2 bg-indigo-600 text-white rounded-r-md hover:bg-indigo-700"
-              >
-                Add
-              </button>
-            </div>
-            {formErrors.languages && (
-              <p className="mt-1 text-xs text-red-500">
-                {formErrors.languages}
-              </p>
-            )}
-
-            {formData.languages.length > 0 && (
-              <div className="mt-2 flex flex-wrap gap-2">
-                {formData.languages.map((lang, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center bg-indigo-100 px-3 py-1 rounded-full"
-                  >
-                    <span className="text-indigo-800 text-sm">{lang}</span>
-                    <button
-                      type="button"
-                      onClick={() => removeLanguage(index)}
-                      className="ml-1 text-indigo-600 hover:text-indigo-800"
-                    >
-                      <X size={16} />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Document Uploads */}
-        <div className="border-t pt-4 mt-4">
-          <h3 className="text-md font-medium mb-3">Document Uploads</h3>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Profile Image*
-              </label>
-              <input
-                type="file"
-                ref={profileImageRef}
-                name="profileImage"
-                accept="image/*"
-                onChange={handleFileChange}
-                className="hidden"
-              />
-              <div
-                className={`border-2 border-dashed rounded-md p-4 text-center cursor-pointer ${
-                  formErrors.profileImage ? "border-red-500" : "border-gray-300"
-                }`}
-                onClick={() => profileImageRef.current?.click()}
-              >
-                {formData.profileImage ? (
-                  <div className="flex items-center justify-center">
-                    <img
-                      src={URL.createObjectURL(formData.profileImage)}
-                      alt="Profile preview"
-                      className="h-32 w-32 object-cover rounded-full"
-                    />
-                  </div>
-                ) : (
-                  <div className="text-gray-500">
-                    <User size={32} className="mx-auto mb-2" />
-                    <p>Click to upload profile image</p>
-                    <p className="text-xs mt-1">JPG, PNG, GIF up to 5MB</p>
-                  </div>
-                )}
-              </div>
-              {formErrors.profileImage && (
-                <p className="mt-1 text-xs text-red-500">
-                  {formErrors.profileImage}
-                </p>
-              )}
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                License Certificate*
-              </label>
-              <input
-                type="file"
-                ref={licenseCertificateRef}
-                name="licenseCertificate"
-                accept=".pdf,.jpg,.jpeg,.png"
-                onChange={handleFileChange}
-                className="hidden"
-              />
-              <div
-                className={`border-2 border-dashed rounded-md p-4 text-center cursor-pointer ${
-                  formErrors.licenseCertificate
-                    ? "border-red-500"
-                    : "border-gray-300"
-                }`}
-                onClick={() => licenseCertificateRef.current?.click()}
-              >
-                {formData.licenseCertificate ? (
-                  <div className="text-green-600">
-                    <FileText size={32} className="mx-auto mb-2" />
-                    <p>{formData.licenseCertificate.name}</p>
-                    <p className="text-xs mt-1">
-                      {(formData.licenseCertificate.size / 1024 / 1024).toFixed(
-                        2
-                      )}{" "}
-                      MB
-                    </p>
-                  </div>
-                ) : (
-                  <div className="text-gray-500">
-                    <FileText size={32} className="mx-auto mb-2" />
-                    <p>Click to upload license certificate</p>
-                    <p className="text-xs mt-1">PDF, JPG, PNG up to 5MB</p>
-                  </div>
-                )}
-              </div>
-              {formErrors.licenseCertificate && (
-                <p className="mt-1 text-xs text-red-500">
-                  {formErrors.licenseCertificate}
-                </p>
-              )}
-            </div>
-          </div>
-        </div>
-
-        <div className="border-t pt-4 mt-4 flex justify-end space-x-3">
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-4 py-2 bg-white border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50"
-            disabled={isSubmitting}
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            className="px-4 py-2 bg-indigo-600 border border-transparent rounded-md shadow-sm text-sm font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
-            disabled={isSubmitting}
-          >
-            {isSubmitting ? "Saving..." : "Save Professional"}
-          </button>
-        </div>
-      </form>
-    </Modal>
   );
 };
 
