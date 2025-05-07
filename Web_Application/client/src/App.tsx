@@ -15,7 +15,7 @@ import EmergencyAlerts from "./features/Emergency";
 import CommunitySupportPages from "./features/Comsup";
 import NotFound from "./components/Error";
 import AdminDashboard from "./pages/AdminDashboard";
-import DoctorDashboard from "./pages/DoctorDashboard";
+import DoctorDashboard from "./components/Doctor/DoctorDashboard";
 import HealthInsightsDashboard from "./pages/HealthInsights";
 import DoctorChannelPage from "./pages/ChannelPage";
 
@@ -98,6 +98,7 @@ const App: React.FC = () => {
 
             {/* Make 404 route the last route */}
             <Route path="*" element={<NotFound />} />
+            <Route path="/doci" element={<DoctorDashboard />} />
           </Routes>
         </div>
       </Router>
