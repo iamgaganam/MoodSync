@@ -9,7 +9,7 @@ import Footer from "../components/Footer";
 
 // Type definitions for form data and errors
 interface FormData {
-  username: string;
+  name: string;
   email: string;
   mobileNumber: string;
   emergencyContact: string;
@@ -18,7 +18,7 @@ interface FormData {
 }
 
 interface FormErrors {
-  username?: string;
+  name?: string;
   email?: string;
   mobileNumber?: string;
   emergencyContact?: string;
@@ -32,7 +32,7 @@ const RegisterPage: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [formData, setFormData] = useState<FormData>({
-    username: "",
+    name: "",
     email: "",
     mobileNumber: "",
     emergencyContact: "",
@@ -50,9 +50,9 @@ const RegisterPage: React.FC = () => {
     const newErrors: FormErrors = {};
     let isValid = true;
 
-    // Username validation
-    if (!formData.username) {
-      newErrors.username = "Username is required";
+    // Name validation
+    if (!formData.name) {
+      newErrors.name = "Name is required";
       isValid = false;
     }
 
@@ -88,6 +88,18 @@ const RegisterPage: React.FC = () => {
     } else if (formData.password.length < 8) {
       newErrors.password = "Password must be at least 8 characters";
       isValid = false;
+    } else {
+      // Additional password strength validation for Node.js backend
+      const hasUpperCase = /[A-Z]/.test(formData.password);
+      const hasLowerCase = /[a-z]/.test(formData.password);
+      const hasNumber = /\d/.test(formData.password);
+      const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(formData.password);
+
+      if (!hasUpperCase || !hasLowerCase || !hasNumber || !hasSpecialChar) {
+        newErrors.password =
+          "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character";
+        isValid = false;
+      }
     }
 
     // Confirm Password validation
@@ -144,14 +156,18 @@ const RegisterPage: React.FC = () => {
     setSuccessMessage(""); // Clear success message
 
     try {
-      // Call the registration API endpoint
-      const response = await axios.post("http://127.0.0.1:8000/register", {
-        username: formData.username,
-        email: formData.email,
-        password: formData.password,
-        mobileNumber: formData.mobileNumber,
-        emergencyContact: formData.emergencyContact,
-      });
+      // Call the registration API endpoint with Node.js backend
+      const response = await axios.post(
+        "http://localhost:5000/api/auth/register",
+        {
+          name: formData.name,
+          email: formData.email,
+          password: formData.password,
+          confirmPassword: formData.confirmPassword,
+          // Additional user data will be stored separately after registration
+          // We could add a profile update endpoint later for mobile/emergency contacts
+        }
+      );
 
       console.log("Registration success:", response.data);
 
@@ -162,10 +178,22 @@ const RegisterPage: React.FC = () => {
       setTimeout(() => {
         navigate("/login");
       }, 2000);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Registration error:", error);
-      const errorMessage =
-        error.response?.data?.detail || "Registration failed.";
+
+      // Updated error handling for Node.js backend
+      let errorMessage = "Registration failed. Please try again.";
+
+      if (axios.isAxiosError(error)) {
+        const axiosError = error;
+        if (axiosError.response?.data) {
+          errorMessage =
+            axiosError.response.data.message ||
+            axiosError.response.data.errors ||
+            errorMessage;
+        }
+      }
+
       setErrors({ general: errorMessage });
     } finally {
       setIsLoading(false);
@@ -270,29 +298,29 @@ const RegisterPage: React.FC = () => {
 
             {/* Registration form */}
             <form className="space-y-4 sm:space-y-6" onSubmit={handleSubmit}>
-              {/* Username */}
+              {/* Name - changed from username to name */}
               <div>
                 <label
-                  htmlFor="username"
+                  htmlFor="name"
                   className="block text-xs sm:text-sm font-medium text-gray-700"
                 >
-                  Username
+                  Full Name
                 </label>
                 <div className="mt-1">
                   <input
-                    id="username"
-                    name="username"
+                    id="name"
+                    name="name"
                     type="text"
-                    autoComplete="username"
-                    value={formData.username}
+                    autoComplete="name"
+                    value={formData.name}
                     onChange={handleChange}
                     className={`appearance-none block w-full px-3 py-2 border ${
-                      errors.username ? "border-red-300" : "border-gray-300"
+                      errors.name ? "border-red-300" : "border-gray-300"
                     } rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-xs sm:text-sm`}
                   />
-                  {errors.username && (
+                  {errors.name && (
                     <p className="mt-1 text-xs sm:text-sm text-red-600">
-                      {errors.username}
+                      {errors.name}
                     </p>
                   )}
                 </div>

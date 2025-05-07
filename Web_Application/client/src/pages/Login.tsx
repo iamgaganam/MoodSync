@@ -26,7 +26,9 @@ interface LocationState {
 }
 
 interface ApiErrorResponse {
-  detail?: string;
+  success: boolean;
+  message: string;
+  errors?: string;
 }
 
 const LoginPage: React.FC = () => {
@@ -104,19 +106,25 @@ const LoginPage: React.FC = () => {
     setErrors({});
 
     try {
-      // Replace with your real API endpoint
-      const response = await axios.post("http://127.0.0.1:8000/login", {
-        email: formData.email,
-        password: formData.password,
-      });
+      // Updated endpoint to use Node.js backend
+      const response = await axios.post(
+        "http://localhost:5000/api/auth/login",
+        {
+          email: formData.email,
+          password: formData.password,
+        }
+      );
+
       console.log("Login success:", response.data);
-      const { access_token, name, email } = response.data;
+
+      // Extract data from Node.js backend response
+      const { token, user } = response.data;
 
       // Save the token in localStorage
-      localStorage.setItem("access_token", access_token);
+      localStorage.setItem("access_token", token);
 
       // Update context with user details and remember me preference
-      login({ name, email }, rememberMe);
+      login({ name: user.name, email: user.email }, rememberMe);
 
       // Navigate to the page they were trying to access or default
       navigate(from);
@@ -127,7 +135,10 @@ const LoginPage: React.FC = () => {
       // Type guard to check if error is an AxiosError
       if (axios.isAxiosError(error)) {
         const axiosError = error as AxiosError<ApiErrorResponse>;
-        errorMessage = axiosError.response?.data?.detail || errorMessage;
+        errorMessage =
+          axiosError.response?.data?.message ||
+          axiosError.response?.data?.errors ||
+          errorMessage;
       }
 
       setErrors({ general: errorMessage });
