@@ -1,3 +1,4 @@
+// server/src/config/env.config.ts
 import dotenv from "dotenv";
 import path from "path";
 
@@ -55,3 +56,7 @@ const validateConfig = (): void => {
 };
 
 validateConfig();
+
+// For backward compatibility
+export const JWT_SECRET = config.jwtSecret;
+export const PORT = config.port;

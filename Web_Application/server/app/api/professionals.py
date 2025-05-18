@@ -1,4 +1,4 @@
-from fastapi import APIRouter, File, Form, UploadFile, HTTPException, Depends, Header
+from fastapi import APIRouter, File, Form, UploadFile, HTTPException, Depends, Header, Path
 from typing import List, Optional
 import json
 import os
@@ -7,6 +7,7 @@ import shutil
 import uuid
 import logging
 from server.app.utils.database import db  # Make sure this path matches your project structure
+from bson.objectid import ObjectId
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -154,3 +155,64 @@ async def get_professionals(current_user: dict = Depends(get_admin_user)):
     except Exception as e:
         logger.error(f"Error retrieving professionals: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to retrieve professionals: {str(e)}")
+
+
+# Delete a professional by ID
+@router.delete("/{professional_id}")
+async def delete_professional(
+        professional_id: str = Path(..., title="The ID of the professional to delete"),
+        current_user: dict = Depends(get_admin_user)
+):
+    try:
+        # Check if user has admin role
+        if current_user.get("role") != "admin":
+            logger.warning(f"Non-admin user attempted to delete professional: {current_user}")
+            raise HTTPException(status_code=403, detail="Only administrators can delete professionals")
+
+        # Convert string ID to ObjectId
+        try:
+            obj_id = ObjectId(professional_id)
+        except Exception as e:
+            logger.error(f"Invalid ObjectId format: {professional_id}")
+            raise HTTPException(status_code=400, detail=f"Invalid professional ID format: {str(e)}")
+
+        # Get the professional first to retrieve file paths
+        professionals_collection = db["professionals"]
+        professional = professionals_collection.find_one({"_id": obj_id})
+
+        if not professional:
+            logger.warning(f"No professional found with ID: {professional_id}")
+            raise HTTPException(status_code=404, detail="Professional not found")
+
+        # Delete the professional from the database
+        result = professionals_collection.delete_one({"_id": obj_id})
+
+        if result.deleted_count == 0:
+            logger.warning(f"Failed to delete professional with ID: {professional_id}")
+            raise HTTPException(status_code=500, detail="Failed to delete professional")
+
+        # Clean up associated files
+        try:
+            if "profileImagePath" in professional and professional["profileImagePath"]:
+                profile_path = professional["profileImagePath"]
+                if os.path.exists(profile_path):
+                    os.remove(profile_path)
+
+            if "licenseCertificatePath" in professional and professional["licenseCertificatePath"]:
+                license_path = professional["licenseCertificatePath"]
+                if os.path.exists(license_path):
+                    os.remove(license_path)
+        except Exception as e:
+            # Log error but don't fail the request if file deletion fails
+            logger.error(f"Error deleting professional files: {str(e)}")
+
+        logger.info(f"Professional deleted with ID: {professional_id}")
+        return {"message": "Professional deleted successfully"}
+
+    except HTTPException as e:
+        # Re-raise HTTP exceptions
+        logger.error(f"HTTP Exception: {e.detail}")
+        raise
+    except Exception as e:
+        logger.error(f"Error deleting professional: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to delete professional: {str(e)}")

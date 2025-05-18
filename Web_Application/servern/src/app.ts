@@ -5,10 +5,13 @@ import morgan from "morgan";
 import compression from "compression";
 import rateLimit from "express-rate-limit";
 import mongoSanitize from "express-mongo-sanitize";
+import path from "path";
 import { config } from "./config/env.config";
 
 // Import routes
 import authRoutes from "./routes/auth.routes";
+import userRoutes from "./routes/user.routes";
+import moodRoutes from "./routes/mood.routes"; // Added mood routes
 
 // Create Express app
 const app: Express = express();
@@ -30,6 +33,9 @@ app.use(
 // Body parser
 app.use(express.json({ limit: "10kb" }));
 app.use(express.urlencoded({ extended: true, limit: "10kb" }));
+
+// Serve static files
+app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
 
 // Request logging
 if (config.nodeEnv === "development") {
@@ -56,6 +62,8 @@ app.use(compression());
 
 // Routes
 app.use("/api/auth", authRoutes);
+app.use("/api/users", userRoutes);
+app.use("/api/mood", moodRoutes); // Added mood routes
 
 // Health check endpoint
 app.get("/health", (req: Request, res: Response) => {

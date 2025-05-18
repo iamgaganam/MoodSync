@@ -1,6 +1,13 @@
+// src/controllers/auth.controller.ts
 import { Request, Response } from "express";
 import User, { IUser } from "../models/user.model";
-import { generateToken } from "../utils/jwt.utils";
+import {
+  generateToken,
+  generateRefreshToken,
+  verifyRefreshToken,
+  generateRandomToken,
+  TokenPayload, // Import TokenPayload interface
+} from "../utils/jwt.utils";
 import winston from "winston";
 import mongoose from "mongoose";
 
@@ -20,6 +27,31 @@ const logger = winston.createLogger({
     }),
   ],
 });
+
+/**
+ * Get user ID as string, handling different possible types
+ */
+const getUserIdAsString = (user: any): string => {
+  if (!user) return "";
+
+  // Handle MongoDB ObjectID
+  if (user._id && typeof user._id === "object" && user._id.toString) {
+    return user._id.toString();
+  }
+
+  // Handle string ID
+  if (user._id && typeof user._id === "string") {
+    return user._id;
+  }
+
+  // Fallback to user.id
+  if (user.id) {
+    return typeof user.id === "object" ? user.id.toString() : String(user.id);
+  }
+
+  // Last resort
+  return String(user._id || "");
+};
 
 /**
  * Validates password strength
@@ -80,8 +112,8 @@ export const register = async (req: Request, res: Response): Promise<void> => {
     const {
       name,
       email,
-      mobileNumber, // Added field
-      emergencyContact, // Added field
+      mobileNumber,
+      emergencyContact,
       password,
       confirmPassword,
       role = "user",
@@ -116,66 +148,60 @@ export const register = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    // Validate mobile number and emergency contact
-    if (!mobileNumber) {
-      res.status(400).json({
-        success: false,
-        message: "Mobile number is required",
-      });
-      return;
-    }
-
-    if (!emergencyContact) {
-      res.status(400).json({
-        success: false,
-        message: "Emergency contact is required",
-      });
-      return;
-    }
-
-    if (mobileNumber === emergencyContact) {
-      res.status(400).json({
-        success: false,
-        message: "Emergency contact cannot be the same as your mobile number",
-      });
-      return;
-    }
-
     // Create new user with all fields
     const newUser = {
       name,
       email,
-      mobileNumber, // Added field
-      emergencyContact, // Added field
+      mobileNumber: mobileNumber || "", // Default to empty string if not provided
+      emergencyContact: emergencyContact || "", // Default to empty string if not provided
       password, // Will be hashed by pre-save hook
+      profileImage: "",
       role,
       // Additional fields
       emailVerified: false, // Require email verification
-      emailVerificationToken: Math.random().toString(36).substring(2, 15),
+      emailVerificationToken: generateRandomToken(),
     };
 
     const user = await User.create(newUser);
 
-    // Generate JWT token
-    const token = generateToken({
-      userId: user._id.toString(),
+    // Generate tokens with payload that includes both id and userId
+    const payload: TokenPayload = {
+      id: getUserIdAsString(user),
+      userId: getUserIdAsString(user),
       email: user.email,
       role: user.role,
-    });
+    };
 
-    // Return user info and token (excluding password)
+    const token = generateToken(payload);
+    const refreshToken = generateRefreshToken(payload);
+
+    // Store refreshToken hash in database for future validation
+    // This is optional but adds more security
+    user.refreshToken = refreshToken;
+    await user.save();
+
+    // Base URL for profile image
+    const baseUrl = `${req.protocol}://${req.get("host")}`;
+    const profileImageUrl = user.profileImage
+      ? `${baseUrl}/uploads/profile-images/${user.profileImage}`
+      : "";
+
+    // Return user info and tokens (excluding password)
     res.status(201).json({
       success: true,
       message: "User registered successfully",
       token,
+      refreshToken,
       user: {
         id: user._id,
         name: user.name,
         email: user.email,
         mobileNumber: user.mobileNumber,
         emergencyContact: user.emergencyContact,
+        profileImage: profileImageUrl,
         role: user.role,
         emailVerified: user.emailVerified,
+        createdAt: user.createdAt,
       },
     });
 
@@ -223,7 +249,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
 
     if (!isMatch) {
       // Increment failed login attempts
-      user.failedLoginAttempts += 1;
+      user.failedLoginAttempts = (user.failedLoginAttempts || 0) + 1;
 
       // Lock account if too many failed attempts (e.g., 5)
       if (user.failedLoginAttempts >= 5) {
@@ -231,7 +257,8 @@ export const login = async (req: Request, res: Response): Promise<void> => {
         user.lockUntil = new Date(Date.now() + 30 * 60 * 1000);
       }
 
-      await user.save();
+      // Skip validation when saving during login
+      await user.save({ validateBeforeSave: false });
 
       res.status(401).json({
         success: false,
@@ -244,28 +271,46 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     user.failedLoginAttempts = 0;
     user.lockUntil = undefined;
     user.lastLogin = new Date();
-    await user.save();
 
-    // Generate JWT token
-    const token = generateToken({
-      userId: user._id.toString(),
+    // Generate tokens with payload that includes both id and userId
+    const payload: TokenPayload = {
+      id: getUserIdAsString(user),
+      userId: getUserIdAsString(user),
       email: user.email,
       role: user.role,
-    });
+    };
 
-    // Return user info and token
+    const token = generateToken(payload);
+    const refreshToken = generateRefreshToken(payload);
+
+    // Store refreshToken in database
+    user.refreshToken = refreshToken;
+
+    // Skip validation when saving during login
+    await user.save({ validateBeforeSave: false });
+
+    // Base URL for profile image
+    const baseUrl = `${req.protocol}://${req.get("host")}`;
+    const profileImageUrl = user.profileImage
+      ? `${baseUrl}/uploads/profile-images/${user.profileImage}`
+      : "";
+
+    // Return user info and tokens
     res.status(200).json({
       success: true,
       message: "Login successful",
       token,
+      refreshToken,
       user: {
         id: user._id,
         name: user.name,
         email: user.email,
-        mobileNumber: user.mobileNumber,
-        emergencyContact: user.emergencyContact,
+        mobileNumber: user.mobileNumber || "",
+        emergencyContact: user.emergencyContact || "",
+        profileImage: profileImageUrl,
         role: user.role,
-        emailVerified: user.emailVerified,
+        emailVerified: user.emailVerified || false,
+        createdAt: user.createdAt,
       },
     });
 
@@ -275,6 +320,77 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     res.status(500).json({
       success: false,
       message: "Server error during login",
+    });
+  }
+};
+
+/**
+ * Refresh access token using refresh token
+ * @route POST /api/auth/refresh-token
+ */
+export const refreshAccessToken = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const { refreshToken } = req.body;
+
+    if (!refreshToken) {
+      res.status(400).json({
+        success: false,
+        message: "Refresh token is required",
+      });
+      return;
+    }
+
+    // Verify the refresh token
+    const decoded = verifyRefreshToken(refreshToken);
+    if (!decoded) {
+      res.status(401).json({
+        success: false,
+        message: "Invalid or expired refresh token",
+      });
+      return;
+    }
+
+    // Find user by id
+    const user = await User.findById(decoded.userId);
+    if (!user) {
+      res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+      return;
+    }
+
+    // Optional: Verify the refresh token matches the one stored in DB
+    // This adds an extra layer of security
+    if (user.refreshToken !== refreshToken) {
+      res.status(401).json({
+        success: false,
+        message: "Invalid refresh token",
+      });
+      return;
+    }
+
+    // Generate new access token with payload that includes both id and userId
+    const newAccessToken = generateToken({
+      id: getUserIdAsString(user),
+      userId: getUserIdAsString(user),
+      email: user.email,
+      role: user.role,
+    });
+
+    // Return new access token
+    res.status(200).json({
+      success: true,
+      token: newAccessToken,
+    });
+  } catch (error) {
+    logger.error("Token refresh error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error during token refresh",
     });
   }
 };
@@ -310,6 +426,12 @@ export const getCurrentUser = async (
       return;
     }
 
+    // Get base URL for profile image
+    const baseUrl = `${req.protocol}://${req.get("host")}`;
+    const profileImageUrl = user.profileImage
+      ? `${baseUrl}/uploads/profile-images/${user.profileImage}`
+      : "";
+
     // Return user info
     res.status(200).json({
       success: true,
@@ -317,10 +439,11 @@ export const getCurrentUser = async (
         id: user._id,
         name: user.name,
         email: user.email,
-        mobileNumber: user.mobileNumber,
-        emergencyContact: user.emergencyContact,
+        mobileNumber: user.mobileNumber || "",
+        emergencyContact: user.emergencyContact || "",
+        profileImage: profileImageUrl,
         role: user.role,
-        emailVerified: user.emailVerified,
+        emailVerified: user.emailVerified || false,
         lastLogin: user.lastLogin,
         createdAt: user.createdAt,
       },
@@ -330,6 +453,33 @@ export const getCurrentUser = async (
     res.status(500).json({
       success: false,
       message: "Server error",
+    });
+  }
+};
+
+/**
+ * Logout a user
+ * @route POST /api/auth/logout
+ */
+export const logout = async (req: Request, res: Response): Promise<void> => {
+  try {
+    // User ID is attached to request by auth middleware
+    const userId = req.user?.userId;
+
+    if (userId) {
+      // Find user and clear refresh token
+      await User.findByIdAndUpdate(userId, { refreshToken: null });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Logout successful",
+    });
+  } catch (error) {
+    logger.error("Logout error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error during logout",
     });
   }
 };
@@ -359,15 +509,14 @@ export const forgotPassword = async (
     }
 
     // Generate reset token
-    const resetToken =
-      Math.random().toString(36).substring(2, 15) +
-      Math.random().toString(36).substring(2, 15);
+    const resetToken = generateRandomToken();
 
     // Set token and expiration (1 hour)
     user.passwordResetToken = resetToken;
     user.passwordResetExpires = new Date(Date.now() + 60 * 60 * 1000);
 
-    await user.save();
+    // Skip validation when saving during password reset request
+    await user.save({ validateBeforeSave: false });
 
     // In a real application, send reset email here with the token
     // For development, just return the token
@@ -441,7 +590,8 @@ export const resetPassword = async (
     user.failedLoginAttempts = 0;
     user.lockUntil = undefined;
 
-    await user.save();
+    // Skip validation when saving during password reset
+    await user.save({ validateBeforeSave: false });
 
     logger.info(`Password reset successful for: ${user.email}`);
 
@@ -484,7 +634,8 @@ export const verifyEmail = async (
     user.emailVerified = true;
     user.emailVerificationToken = undefined;
 
-    await user.save();
+    // Skip validation when saving during email verification
+    await user.save({ validateBeforeSave: false });
 
     logger.info(`Email verified for: ${user.email}`);
 

@@ -1,4 +1,5 @@
-import { Router } from "express";
+// server/src/routes/auth.routes.ts
+import express from "express";
 import {
   register,
   login,
@@ -6,26 +7,23 @@ import {
   forgotPassword,
   resetPassword,
   verifyEmail,
+  logout,
+  refreshAccessToken,
 } from "../controllers/auth.controller";
 import { authenticate } from "../middleware/auth.middleware";
-import { validate } from "../utils/validator";
-import {
-  registerSchema,
-  loginSchema,
-  forgotPasswordSchema,
-  resetPasswordSchema,
-} from "../utils/validator";
 
-const router = Router();
+const router = express.Router();
 
 // Public routes
-router.post("/register", validate(registerSchema), register);
-router.post("/login", validate(loginSchema), login);
-router.post("/forgot-password", validate(forgotPasswordSchema), forgotPassword);
-router.post("/reset-password", validate(resetPasswordSchema), resetPassword);
+router.post("/register", register);
+router.post("/login", login);
+router.post("/forgot-password", forgotPassword);
+router.post("/reset-password", resetPassword);
 router.get("/verify-email/:token", verifyEmail);
+router.post("/refresh-token", refreshAccessToken); // Add this line
 
 // Protected routes
 router.get("/me", authenticate, getCurrentUser);
+router.post("/logout", authenticate, logout);
 
 export default router;

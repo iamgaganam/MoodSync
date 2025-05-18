@@ -98,7 +98,6 @@ const App: React.FC = () => {
 
             {/* Make 404 route the last route */}
             <Route path="*" element={<NotFound />} />
-            <Route path="/doci" element={<DoctorDashboard />} />
           </Routes>
         </div>
       </Router>

@@ -1,4 +1,4 @@
-// UserProfilePages.tsx
+// src/pages/UserProfilePages.tsx
 import React, { useState } from "react";
 import {
   FaUser,
@@ -25,22 +25,14 @@ import {
   FaPen,
   FaEllipsisH,
 } from "react-icons/fa";
+import { useNavigate } from "react-router-dom";
 import Footer from "../components/Footer";
-import Navbar from "../components/Navbar"; // Make sure the path is correct
+import Navbar from "../components/Navbar";
+import { useUserProfile } from "../hooks/useUserProfile";
+import { useAuth } from "../context/AuthContext";
 import profileImage from "../assets/profile.jpeg";
 
 // Sample data (in a real app, this would come from your API)
-const SAMPLE_USER = {
-  name: "Gagana Methmal",
-  email: "gaganam220@gmail.com",
-  joinDate: "2025-02-23",
-  profileImage: profileImage, // Local image path in public folder
-  location: "Colombo, Sri Lanka",
-  therapistName: "Dr. Nirmala Silva",
-  nextAppointment: "2025-03-07T14:30:00",
-  emergencyContact: "+94 77 123 4567",
-};
-
 const SAMPLE_MOOD_DATA = [
   {
     date: "2025-02-23",
@@ -228,38 +220,111 @@ const MoodIcon: React.FC<{ mood: string; size?: number }> = ({
   }
 };
 
-// MyProfile Component
+// AuthError Component for displaying authentication errors
+const AuthError: React.FC<{ error: string; onRetry: () => void }> = ({
+  error,
+  onRetry,
+}) => {
+  const navigate = useNavigate();
+
+  return (
+    <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
+      <div className="bg-white rounded-xl shadow-md p-8 max-w-md w-full text-center">
+        <div className="text-red-500 text-xl mb-4">{error}</div>
+        <p className="mb-6 text-gray-600">
+          Your session may have expired or you need to sign in again.
+        </p>
+        <div className="flex flex-col sm:flex-row justify-center gap-4">
+          <button
+            onClick={() =>
+              navigate("/login", { state: { from: "/userprofile" } })
+            }
+            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            Go to Login
+          </button>
+          <button
+            onClick={onRetry}
+            className="px-6 py-3 border border-blue-600 text-blue-600 rounded-lg hover:bg-blue-50 transition-colors"
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// MyProfile Component - Updated to use real data from backend
 const MyProfile: React.FC = () => {
-  const [isEditing, setIsEditing] = useState(false);
-  const [profileData, setProfileData] = useState(SAMPLE_USER);
-  const [tempData, setTempData] = useState(SAMPLE_USER);
+  const navigate = useNavigate();
+  const { logout } = useAuth();
+  const {
+    profileData,
+    tempData,
+    isLoading,
+    error,
+    isEditing,
+    setTempData,
+    setIsEditing,
+    handleSave,
+    handleCancel,
+    refreshProfile,
+  } = useUserProfile();
 
-  const handleSave = () => {
-    setProfileData(tempData);
-    setIsEditing(false);
-  };
+  // Show authentication error
+  if (error && error.includes("Not authenticated")) {
+    return <AuthError error={error} onRetry={refreshProfile} />;
+  }
 
-  const handleCancel = () => {
-    setTempData(profileData);
-    setIsEditing(false);
+  // Show loading state
+  if (isLoading && !profileData) {
+    return (
+      <div className="bg-white rounded-xl shadow-sm p-6 transition-all duration-300">
+        <div className="flex justify-center items-center h-64">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+          <p className="ml-3">Loading profile data...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show general error state
+  if (error && !error.includes("Not authenticated") && !profileData) {
+    return (
+      <div className="bg-white rounded-xl shadow-sm p-6 transition-all duration-300">
+        <div className="text-center text-red-500 p-4">
+          <p>{error}</p>
+          <button
+            className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            onClick={refreshProfile}
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // If no data yet, show nothing
+  if (!profileData || !tempData) {
+    return null;
+  }
+
+  const handleLogout = () => {
+    logout();
+    navigate("/login");
   };
 
   return (
     <div className="bg-white rounded-xl shadow-sm p-6 transition-all duration-300">
       <div className="flex flex-col md:flex-row items-start md:items-center">
         <div className="relative mb-6 md:mb-0 md:mr-6 group">
-          <a
-            href={profileData.profileImage.toString()}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <img
-              src={profileData.profileImage.toString()}
-              alt="Profile"
-              className="w-24 h-24 rounded-full object-cover border-4 border-blue-100 transition-all duration-300 group-hover:border-blue-300"
-            />
-          </a>
-
+          <img
+            src={profileImage.toString()}
+            alt="Profile"
+            className="w-24 h-24 rounded-full object-cover border-4 border-blue-100 transition-all duration-300 group-hover:border-blue-300"
+          />
           <button
             className="absolute bottom-0 right-0 bg-blue-600 text-white p-2 rounded-full text-sm shadow-md hover:bg-blue-700 transition-colors"
             aria-label="Edit profile picture"
@@ -285,18 +350,7 @@ const MyProfile: React.FC = () => {
                   {profileData.name}
                 </h2>
               )}
-              {isEditing ? (
-                <input
-                  type="email"
-                  className="text-gray-600 border-b border-blue-300 mb-2 w-full focus:outline-none focus:border-blue-600"
-                  value={tempData.email}
-                  onChange={(e) =>
-                    setTempData({ ...tempData, email: e.target.value })
-                  }
-                />
-              ) : (
-                <p className="text-gray-600">{profileData.email}</p>
-              )}
+              <p className="text-gray-600">{profileData.email}</p>
               <p className="text-sm text-gray-500 mt-1">
                 Member since{" "}
                 {new Date(profileData.joinDate).toLocaleDateString()}
@@ -333,18 +387,20 @@ const MyProfile: React.FC = () => {
         <h3 className="text-lg font-semibold mb-4">Personal Information</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="p-3 bg-gray-50 rounded-lg hover:bg-blue-50 transition-colors">
-            <p className="text-sm text-gray-500 mb-1">Location</p>
+            <p className="text-sm text-gray-500 mb-1">Mobile Number</p>
             {isEditing ? (
               <input
                 type="text"
                 className="font-medium border-b border-blue-300 w-full bg-transparent focus:outline-none focus:border-blue-600"
-                value={tempData.location}
+                value={tempData.mobileNumber}
                 onChange={(e) =>
-                  setTempData({ ...tempData, location: e.target.value })
+                  setTempData({ ...tempData, mobileNumber: e.target.value })
                 }
               />
             ) : (
-              <p className="font-medium">{profileData.location}</p>
+              <p className="font-medium">
+                {profileData.mobileNumber || "Not set"}
+              </p>
             )}
           </div>
           <div className="p-3 bg-gray-50 rounded-lg hover:bg-blue-50 transition-colors">
@@ -359,42 +415,20 @@ const MyProfile: React.FC = () => {
                 }
               />
             ) : (
-              <p className="font-medium">{profileData.emergencyContact}</p>
-            )}
-          </div>
-          <div className="p-3 bg-gray-50 rounded-lg hover:bg-blue-50 transition-colors">
-            <p className="text-sm text-gray-500 mb-1">Current Therapist</p>
-            {isEditing ? (
-              <input
-                type="text"
-                className="font-medium border-b border-blue-300 w-full bg-transparent focus:outline-none focus:border-blue-600"
-                value={tempData.therapistName}
-                onChange={(e) =>
-                  setTempData({ ...tempData, therapistName: e.target.value })
-                }
-              />
-            ) : (
-              <p className="font-medium">{profileData.therapistName}</p>
-            )}
-          </div>
-          <div className="p-3 bg-gray-50 rounded-lg hover:bg-blue-50 transition-colors">
-            <p className="text-sm text-gray-500 mb-1">Next Appointment</p>
-            {isEditing ? (
-              <input
-                type="datetime-local"
-                className="font-medium border-b border-blue-300 w-full bg-transparent focus:outline-none focus:border-blue-600"
-                value={new Date(tempData.nextAppointment)
-                  .toISOString()
-                  .slice(0, 16)}
-                onChange={(e) =>
-                  setTempData({ ...tempData, nextAppointment: e.target.value })
-                }
-              />
-            ) : (
               <p className="font-medium">
-                {new Date(profileData.nextAppointment).toLocaleString()}
+                {profileData.emergencyContact || "Not set"}
               </p>
             )}
+          </div>
+          <div className="p-3 bg-gray-50 rounded-lg hover:bg-blue-50 transition-colors">
+            <p className="text-sm text-gray-500 mb-1">Account Type</p>
+            <p className="font-medium capitalize">{profileData.role}</p>
+          </div>
+          <div className="p-3 bg-gray-50 rounded-lg hover:bg-blue-50 transition-colors">
+            <p className="text-sm text-gray-500 mb-1">Email Verification</p>
+            <p className="font-medium">
+              {profileData.emailVerified ? "Verified" : "Not Verified"}
+            </p>
           </div>
         </div>
       </div>
@@ -414,12 +448,22 @@ const MyProfile: React.FC = () => {
             <FaEdit className="text-green-500 mr-3" />
             <span>Change Password</span>
           </button>
-          <button className="p-3 border border-red-200 rounded-lg text-left flex items-center text-red-600 hover:bg-red-50 transition-colors shadow-sm hover:shadow">
+          <button
+            className="p-3 border border-red-200 rounded-lg text-left flex items-center text-red-600 hover:bg-red-50 transition-colors shadow-sm hover:shadow"
+            onClick={handleLogout}
+          >
             <FaSignOutAlt className="mr-3" />
             <span>Logout</span>
           </button>
         </div>
       </div>
+
+      {/* Show error message if there's an issue while editing */}
+      {error && !error.includes("Not authenticated") && (
+        <div className="mt-4 p-3 bg-red-100 text-red-800 rounded-lg">
+          {error}
+        </div>
+      )}
     </div>
   );
 };
@@ -602,13 +646,13 @@ const UserDashboard: React.FC = () => {
                 <div className="ml-3">
                   <p className="font-medium">Therapy Session</p>
                   <p className="text-sm text-gray-600">
-                    {new Date(SAMPLE_USER.nextAppointment).toLocaleString()}
+                    Next session to be scheduled
                   </p>
                 </div>
               </div>
               <div className="mt-2 flex justify-end space-x-2">
                 <button className="text-xs text-blue-600 hover:underline">
-                  Reschedule
+                  Schedule
                 </button>
                 <button className="text-xs text-gray-600 hover:underline">
                   Add to Calendar
@@ -1189,6 +1233,13 @@ const Journal: React.FC = () => {
 // Main UserProfilePages Component
 const UserProfilePages: React.FC = () => {
   const [activeTab, setActiveTab] = useState("dashboard");
+  const { isLoggedIn, user } = useAuth();
+  const { error, refreshProfile } = useUserProfile();
+
+  // Handle authentication error at the top level
+  if (error && error.includes("Not authenticated")) {
+    return <AuthError error={error} onRetry={refreshProfile} />;
+  }
 
   const renderContent = () => {
     switch (activeTab) {
@@ -1207,8 +1258,7 @@ const UserProfilePages: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Navbar /> {/* Your fixed Navbar */}
-      {/* Add padding top so that content does not overlap with the fixed Navbar */}
+      <Navbar />
       <div className="pt-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex flex-col lg:flex-row gap-8">
           <div className="lg:w-64 flex-shrink-0">
@@ -1251,21 +1301,26 @@ const UserProfilePages: React.FC = () => {
           </div>
 
           <div className="flex-1">
-            <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 mb-6 flex items-center">
-              <div className="mr-4 bg-blue-600 text-white p-3 rounded-xl">
-                <FaCalendarAlt />
+            {/* Welcome message with real user name when authenticated */}
+            {isLoggedIn && user && (
+              <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 mb-6 flex items-center">
+                <div className="mr-4 bg-blue-600 text-white p-3 rounded-xl">
+                  <FaUser />
+                </div>
+                <div className="flex-1">
+                  <h2 className="font-medium text-blue-800">
+                    Welcome back, {user.name}
+                  </h2>
+                  <p className="text-sm text-blue-600">
+                    Track your mental health journey and stay connected with
+                    your support system
+                  </p>
+                </div>
+                <button className="bg-white text-blue-600 px-4 py-2 rounded-lg font-medium hover:bg-blue-600 hover:text-white transition-colors shadow-sm">
+                  Get Started
+                </button>
               </div>
-              <div className="flex-1">
-                <h2 className="font-medium text-blue-800">
-                  Your next therapy session is scheduled for{" "}
-                  {new Date(SAMPLE_USER.nextAppointment).toLocaleString()}
-                </h2>
-                <p className="text-sm text-blue-600">with Dr. Nirmala Silva</p>
-              </div>
-              <button className="bg-white text-blue-600 px-4 py-2 rounded-lg font-medium hover:bg-blue-600 hover:text-white transition-colors shadow-sm">
-                View Details
-              </button>
-            </div>
+            )}
 
             {renderContent()}
           </div>

@@ -1,3 +1,4 @@
+// src/pages/LoginPage.tsx
 import React, { useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import axios, { AxiosError } from "axios";
@@ -20,9 +21,7 @@ interface FormErrors {
 }
 
 interface LocationState {
-  from?: {
-    pathname: string;
-  };
+  from?: string;
 }
 
 interface ApiErrorResponse {
@@ -38,7 +37,7 @@ const LoginPage: React.FC = () => {
 
   // Get the previous location (if any) or default to profile page
   const locationState = location.state as LocationState;
-  const from = locationState?.from?.pathname || "/userprofile";
+  const from = locationState?.from || "/userprofile";
 
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState<FormData>({
@@ -106,7 +105,7 @@ const LoginPage: React.FC = () => {
     setErrors({});
 
     try {
-      // Updated endpoint to use Node.js backend
+      // Call the login API
       const response = await axios.post(
         "http://localhost:5000/api/auth/login",
         {
@@ -118,13 +117,23 @@ const LoginPage: React.FC = () => {
       console.log("Login success:", response.data);
 
       // Extract data from Node.js backend response
-      const { token, user } = response.data;
+      const { token, refreshToken, user } = response.data;
 
-      // Save the token in localStorage
-      localStorage.setItem("access_token", token);
-
-      // Update context with user details and remember me preference
-      login({ name: user.name, email: user.email }, rememberMe);
+      // Call the updated login function that handles both tokens
+      login(
+        {
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          id: user.id,
+          mobileNumber: user.mobileNumber,
+          emergencyContact: user.emergencyContact,
+          profileImage: user.profileImage,
+        },
+        token,
+        refreshToken,
+        rememberMe
+      );
 
       // Navigate to the page they were trying to access or default
       navigate(from);

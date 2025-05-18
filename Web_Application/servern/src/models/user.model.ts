@@ -1,37 +1,44 @@
-import mongoose, { Document, Schema, Types } from "mongoose";
+import mongoose, { Document, Schema, Model } from "mongoose";
 import bcrypt from "bcrypt";
+import { CallbackError } from "mongoose";
 
-// User interface with Document extension for Mongoose
+// Define User interface to enforce TypeScript types
 export interface IUser extends Document {
-  _id: Types.ObjectId;
   name: string;
   email: string;
-  mobileNumber: string; // Added field
-  emergencyContact: string; // Added field
   password: string;
-  role: "user" | "doctor" | "admin";
-  isActive: boolean;
-  lastLogin?: Date;
+  mobileNumber?: string;
+  emergencyContact?: string;
+  profileImage?: string;
+  role: "user" | "admin" | "doctor" | "therapist";
+  specialization?: string;
+  hospital?: string;
+  age?: number;
+  gender?: "Male" | "Female" | "Other" | "";
+  diagnosis?: string;
+  status: "active" | "inactive";
+  lastActive: Date;
+  emailVerified: boolean;
+  emailVerificationToken?: string;
   passwordResetToken?: string;
   passwordResetExpires?: Date;
-  emailVerificationToken?: string;
-  emailVerified: boolean;
   failedLoginAttempts: number;
   lockUntil?: Date;
+  lastLogin?: Date;
+  refreshToken?: string;
+  // Add timestamp fields from Mongoose
   createdAt: Date;
   updatedAt: Date;
   comparePassword(candidatePassword: string): Promise<boolean>;
 }
 
 // User schema
-const UserSchema: Schema = new Schema(
+const userSchema = new Schema<IUser>(
   {
     name: {
       type: String,
       required: [true, "Name is required"],
       trim: true,
-      minlength: [2, "Name must be at least 2 characters"],
-      maxlength: [100, "Name cannot exceed 100 characters"],
     },
     email: {
       type: String,
@@ -39,94 +46,108 @@ const UserSchema: Schema = new Schema(
       unique: true,
       lowercase: true,
       trim: true,
-      match: [
-        /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/,
-        "Please provide a valid email address",
-      ],
-    },
-    mobileNumber: {
-      // Added field
-      type: String,
-      required: [true, "Mobile number is required"],
-      trim: true,
-    },
-    emergencyContact: {
-      // Added field
-      type: String,
-      required: [true, "Emergency contact is required"],
-      trim: true,
+      index: true,
     },
     password: {
       type: String,
       required: [true, "Password is required"],
-      minlength: [8, "Password must be at least 8 characters"],
-      select: false,
+      select: false, // Don't return password by default
+    },
+    mobileNumber: {
+      type: String,
+      default: "",
+    },
+    emergencyContact: {
+      type: String,
+      default: "",
+    },
+    profileImage: {
+      type: String,
+      default: "/api/placeholder/150/150", // Default image path
     },
     role: {
       type: String,
-      enum: ["user", "doctor", "admin"],
+      enum: ["user", "admin", "doctor", "therapist"],
       default: "user",
     },
-    isActive: {
-      type: Boolean,
-      default: true,
+    // Doctor specific fields
+    specialization: {
+      type: String,
+      required: function (this: IUser) {
+        return this.role === "doctor" || this.role === "therapist";
+      },
     },
-    lastLogin: {
+    hospital: {
+      type: String,
+      required: function (this: IUser) {
+        return this.role === "doctor";
+      },
+    },
+    // User specific fields
+    age: {
+      type: Number,
+    },
+    gender: {
+      type: String,
+      enum: ["Male", "Female", "Other", ""],
+    },
+    diagnosis: {
+      type: String,
+    },
+    // Communication fields
+    status: {
+      type: String,
+      enum: ["active", "inactive"],
+      default: "inactive",
+    },
+    lastActive: {
       type: Date,
+      default: Date.now,
     },
-    passwordResetToken: String,
-    passwordResetExpires: Date,
-    emailVerificationToken: String,
+    // Auth fields
     emailVerified: {
       type: Boolean,
       default: false,
     },
+    emailVerificationToken: String,
+    passwordResetToken: String,
+    passwordResetExpires: Date,
     failedLoginAttempts: {
       type: Number,
       default: 0,
     },
     lockUntil: Date,
+    lastLogin: Date,
+    refreshToken: String, // Added refresh token field
   },
   {
-    timestamps: true, // Adds createdAt and updatedAt fields
+    timestamps: true, // Adds createdAt and updatedAt
   }
 );
 
-// Create index for efficient querying
-UserSchema.index({ email: 1 });
-
-// Middleware: Hash password before saving
-UserSchema.pre<IUser>("save", async function (next) {
-  // Only hash password if it has been modified or is new
+// Hash password before saving
+userSchema.pre("save", async function (next) {
+  // Only hash the password if it's modified (or new)
   if (!this.isModified("password")) return next();
-
   try {
-    // Generate salt
-    const salt = await bcrypt.genSalt(
-      Number(process.env.BCRYPT_SALT_ROUNDS) || 12
-    );
-
-    // Hash password
+    const salt = await bcrypt.genSalt(10);
     this.password = await bcrypt.hash(this.password, salt);
     next();
-  } catch (error: any) {
-    next(error);
+  } catch (error) {
+    next(error as CallbackError);
   }
 });
 
-// Method: Compare password
-UserSchema.methods.comparePassword = async function (
+// Method to compare password
+userSchema.methods.comparePassword = async function (
   candidatePassword: string
 ): Promise<boolean> {
   try {
-    // Note: this.password might not be available if 'select: false' is in effect
-    // In such cases, the password needs to be explicitly selected in the query
     return await bcrypt.compare(candidatePassword, this.password);
   } catch (error) {
-    throw new Error("Password comparison failed");
+    return false;
   }
 };
 
-// Create and export the User model
-const User = mongoose.model<IUser>("User", UserSchema);
+const User: Model<IUser> = mongoose.model<IUser>("User", userSchema);
 export default User;
