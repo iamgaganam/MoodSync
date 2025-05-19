@@ -26,7 +26,7 @@ interface Activity {
 }
 
 interface UserData {
-  id: number;
+  id: number | string;
   name: string;
   email: string;
   phone: string;
@@ -103,6 +103,24 @@ interface ApiProfessional {
   createdBy: string;
 }
 
+interface ApiUser {
+  _id: string | number;
+  name: string;
+  email: string;
+  phone: string;
+  location: string;
+  active: boolean;
+  joinDate: string;
+  currentMood: number;
+  riskLevel: string;
+  recentActivity: Activity[];
+  lastActive: string;
+  assignedTo: string;
+  profileImagePath?: string;
+  createdAt: string;
+  createdBy: string;
+}
+
 interface UserActivity {
   type: string;
   user: string;
@@ -140,6 +158,18 @@ interface ProfessionalFormData {
   availableHours: string;
   profileImage?: File | null;
   licenseCertificate?: File | null;
+}
+
+// New interface for user form data
+interface UserFormData {
+  name: string;
+  email: string;
+  phone: string;
+  location: string;
+  password: string;
+  confirmPassword: string;
+  active?: boolean;
+  profileImage?: File | null;
 }
 
 // -------------------------
@@ -183,6 +213,7 @@ interface DashboardContentProps {
 interface UsersContentProps {
   users: UserData[];
   onUserSelect: (user: UserData) => void;
+  onAddUser: () => void; // New prop
 }
 
 interface AlertsContentProps {
@@ -203,6 +234,12 @@ interface AnalyticsContentProps {
 interface AddProfessionalModalProps {
   onClose: () => void;
   onSave: (professional: ProfessionalFormData) => void;
+}
+
+// New props interface for AddUserModal
+interface AddUserModalProps {
+  onClose: () => void;
+  onSave: (user: UserFormData) => void;
 }
 
 // -------------------------
@@ -689,13 +726,20 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
   );
 };
 
-// UsersContent Component
-const UsersContent: React.FC<UsersContentProps> = ({ users, onUserSelect }) => {
+// UsersContent Component - UPDATED WITH ADD USER BUTTON
+const UsersContent: React.FC<UsersContentProps> = ({
+  users,
+  onUserSelect,
+  onAddUser,
+}) => {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h2 className="text-lg font-medium">User Management</h2>
-        <button className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors">
+        <button
+          onClick={onAddUser}
+          className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors"
+        >
           Add New User
         </button>
       </div>
@@ -1473,6 +1517,188 @@ const AddProfessionalModal: React.FC<AddProfessionalModalProps> = ({
   );
 };
 
+// NEW COMPONENT: AddUserModal Component
+const AddUserModal: React.FC<AddUserModalProps> = ({ onClose, onSave }) => {
+  const [formData, setFormData] = useState<UserFormData>({
+    name: "",
+    email: "",
+    phone: "",
+    location: "Colombo",
+    password: "",
+    confirmPassword: "",
+    profileImage: null,
+  });
+
+  const [passwordError, setPasswordError] = useState("");
+
+  const handleInputChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+  ) => {
+    const { name, value } = e.target;
+    setFormData({ ...formData, [name]: value });
+
+    // Clear password error when user types
+    if (name === "password" || name === "confirmPassword") {
+      setPasswordError("");
+    }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, files } = e.target;
+    if (files && files.length > 0) {
+      setFormData({ ...formData, [name]: files[0] });
+    }
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+
+    // Validate passwords match
+    if (formData.password !== formData.confirmPassword) {
+      setPasswordError("Passwords do not match");
+      return;
+    }
+
+    // Password strength validation
+    if (formData.password.length < 8) {
+      setPasswordError("Password must be at least 8 characters");
+      return;
+    }
+
+    onSave(formData);
+  };
+
+  return (
+    <Modal title="Add New User" onClose={onClose}>
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700">
+              Full Name*
+            </label>
+            <input
+              type="text"
+              name="name"
+              required
+              value={formData.name}
+              onChange={handleInputChange}
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700">
+              Email*
+            </label>
+            <input
+              type="email"
+              name="email"
+              required
+              value={formData.email}
+              onChange={handleInputChange}
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700">
+              Phone Number*
+            </label>
+            <input
+              type="text"
+              name="phone"
+              required
+              value={formData.phone}
+              onChange={handleInputChange}
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700">
+              Location*
+            </label>
+            <select
+              name="location"
+              required
+              value={formData.location}
+              onChange={handleInputChange}
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+            >
+              <option value="Colombo">Colombo</option>
+              <option value="Kandy">Kandy</option>
+              <option value="Galle">Galle</option>
+              <option value="Jaffna">Jaffna</option>
+              <option value="Batticaloa">Batticaloa</option>
+              <option value="Negombo">Negombo</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700">
+              Password*
+            </label>
+            <input
+              type="password"
+              name="password"
+              required
+              value={formData.password}
+              onChange={handleInputChange}
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700">
+              Confirm Password*
+            </label>
+            <input
+              type="password"
+              name="confirmPassword"
+              required
+              value={formData.confirmPassword}
+              onChange={handleInputChange}
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+            />
+          </div>
+        </div>
+
+        {passwordError && (
+          <div className="text-red-500 text-sm">{passwordError}</div>
+        )}
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700">
+            Profile Photo
+          </label>
+          <input
+            type="file"
+            name="profileImage"
+            onChange={handleFileChange}
+            className="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+            accept="image/*"
+          />
+        </div>
+
+        <div className="flex justify-end space-x-3 pt-4 border-t">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2 bg-white border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            className="px-4 py-2 bg-indigo-600 border border-transparent rounded-md shadow-sm text-sm font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+          >
+            Add User
+          </button>
+        </div>
+      </form>
+    </Modal>
+  );
+};
+
 // -------------------------
 // Main Admin Dashboard Component
 // -------------------------
@@ -1494,11 +1720,12 @@ const AdminDashboard: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [notifications, setNotifications] = useState<NotificationData[]>([]);
 
-  // New state for add professional modal
+  // Modal states
   const [showAddProfessionalModal, setShowAddProfessionalModal] =
     useState(false);
+  const [showAddUserModal, setShowAddUserModal] = useState(false); // New state for user modal
 
-  // Updated to fetch real professionals from the API
+  // Updated to fetch real data from the API
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
@@ -1544,8 +1771,36 @@ const AdminDashboard: React.FC = () => {
 
         setProfessionals(mappedProfessionals);
 
+        // Fetch users from API
+        const usersResponse = await fetch("http://localhost:8000/api/users/");
+
+        if (usersResponse.ok) {
+          const usersData = await usersResponse.json();
+
+          // Map API data to UserData interface
+          const mappedUsers: UserData[] = usersData.map((user: ApiUser) => ({
+            id: user._id,
+            name: user.name,
+            email: user.email,
+            phone: user.phone || "",
+            location: user.location || "",
+            active: user.active !== undefined ? user.active : true,
+            joinDate: user.joinDate || new Date().toISOString().split("T")[0],
+            currentMood: user.currentMood || 50,
+            riskLevel: user.riskLevel || "Low",
+            recentActivity: user.recentActivity || [],
+            lastActive: user.lastActive || "Never",
+            assignedTo: user.assignedTo || "",
+          }));
+
+          setUsers(mappedUsers);
+        } else {
+          // Fallback to mock data if API fails
+          console.error("Failed to fetch users from API, using mock data");
+          setUsers(mockUsers);
+        }
+
         // For completeness, still fetch other data
-        setUsers(mockUsers);
         setAlerts(mockAlerts);
         setAnalytics(mockAnalytics);
         setNotifications(mockNotifications);
@@ -1677,6 +1932,89 @@ const AdminDashboard: React.FC = () => {
       console.error("Error adding professional:", error);
       alert(
         `Failed to add professional: ${
+          error instanceof Error ? error.message : String(error)
+        }`
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Function to handle adding a new user
+  const handleAddUser = async (userData: UserFormData) => {
+    try {
+      setLoading(true);
+
+      // Create FormData for the API request
+      const formData = new FormData();
+
+      // Add text fields
+      formData.append("name", userData.name);
+      formData.append("email", userData.email);
+      formData.append("phone", userData.phone);
+      formData.append("location", userData.location);
+      formData.append("password", userData.password);
+      formData.append("active", "true");
+
+      // Add profile image if provided
+      if (userData.profileImage) {
+        formData.append("profileImage", userData.profileImage);
+      }
+
+      const response = await fetch("http://localhost:8000/api/users/", {
+        method: "POST",
+        body: formData,
+      });
+
+      // Handle response with better error checking
+      const responseText = await response.text();
+      let result;
+
+      try {
+        // Only try to parse as JSON if there's actual content
+        result = responseText ? JSON.parse(responseText) : {};
+      } catch (e) {
+        console.error("Failed to parse response:", responseText, e);
+        throw new Error("Server returned invalid JSON response");
+      }
+
+      if (!response.ok) {
+        throw new Error(result.detail || `Server error: ${response.status}`);
+      }
+
+      // After successful creation, refetch the users list to get updated data
+      const refreshResponse = await fetch("http://localhost:8000/api/users/");
+      if (!refreshResponse.ok) {
+        throw new Error(`Failed to fetch users: ${refreshResponse.status}`);
+      }
+
+      const refreshData = await refreshResponse.json();
+
+      // Map API data to UserData interface
+      const mappedUsers: UserData[] = refreshData.map((user: ApiUser) => ({
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone || "",
+        location: user.location || "",
+        active: user.active !== undefined ? user.active : true,
+        joinDate: user.joinDate || new Date().toISOString().split("T")[0],
+        currentMood: user.currentMood || 50,
+        riskLevel: user.riskLevel || "Low",
+        recentActivity: user.recentActivity || [],
+        lastActive: user.lastActive || "Never",
+        assignedTo: user.assignedTo || "",
+      }));
+
+      setUsers(mappedUsers);
+      setShowAddUserModal(false);
+
+      // Show success message
+      alert("User added successfully!");
+    } catch (error) {
+      console.error("Error adding user:", error);
+      alert(
+        `Failed to add user: ${
           error instanceof Error ? error.message : String(error)
         }`
       );
@@ -1901,6 +2239,7 @@ const AdminDashboard: React.FC = () => {
                 <UsersContent
                   users={filteredUsers}
                   onUserSelect={handleUserSelect}
+                  onAddUser={() => setShowAddUserModal(true)}
                 />
               )}
 
@@ -2326,6 +2665,14 @@ const AdminDashboard: React.FC = () => {
         <AddProfessionalModal
           onClose={() => setShowAddProfessionalModal(false)}
           onSave={handleAddProfessional}
+        />
+      )}
+
+      {/* Add User Modal */}
+      {showAddUserModal && (
+        <AddUserModal
+          onClose={() => setShowAddUserModal(false)}
+          onSave={handleAddUser}
         />
       )}
     </div>
