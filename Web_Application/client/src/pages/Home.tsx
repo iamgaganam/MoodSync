@@ -235,7 +235,7 @@ const HomePage: React.FC = () => {
   const statistics = [
     {
       icon: <Users className="h-10 w-10" />,
-      number: "10,000+",
+      number: "10+",
       label: "Active Users",
     },
     {
@@ -250,7 +250,7 @@ const HomePage: React.FC = () => {
     },
     {
       icon: <Activity className="h-10 w-10" />,
-      number: "15+",
+      number: "3+",
       label: "Partner Hospitals",
     },
   ];

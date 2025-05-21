@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 import os
 import logging
-from server.app.utils.database import db  # Import your database connection
+from server.app.utils.database import db, init_community_database  # Import your database connection
 from server.app.api.auth import router as auth_router
 from server.app.api.protected import router as protected_router
 from server.app.api.sentiment import router as sentiment_router
@@ -11,6 +11,7 @@ from server.app.api.chat_socket import router as chat_socket_router
 from server.app.api.professionals import router as professionals_router
 from server.app.api.users import router as users_router
 from server.app.api.emergency_contacts import router as emergency_contacts_router
+from server.app.api.community import router as community_router  # Import the community router
 
 # Configure logging
 logging.basicConfig(
@@ -47,6 +48,7 @@ app.include_router(chat_socket_router, tags=["chat-socket"])
 app.include_router(professionals_router, prefix="/api/professionals", tags=["professionals"])
 app.include_router(users_router, prefix="/api/users", tags=["users"])
 app.include_router(emergency_contacts_router, prefix="/api/emergency-contacts", tags=["emergency-contacts"])
+app.include_router(community_router, prefix="/api/community", tags=["community"])  # Add the community router
 logger.info("All API routers have been registered")
 
 @app.get("/")
@@ -73,5 +75,14 @@ async def health_check():
             "message": f"API health check failed: {str(e)}",
             "database": "disconnected"
         }
+
+@app.on_event("startup")
+async def startup_db_client():
+    # Initialize community collections with sample data for demo
+    try:
+        await init_community_database()
+        logger.info("Community database initialized successfully")
+    except Exception as e:
+        logger.error(f"Error initializing community database: {str(e)}")
 
 logger.info("FastAPI application initialized and ready")
