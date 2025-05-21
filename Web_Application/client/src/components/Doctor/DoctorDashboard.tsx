@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -34,7 +34,11 @@ import {
   Filter,
   ThumbsUp,
   X,
+  Download,
+  Printer,
 } from "lucide-react";
+import jsPDF from "jspdf";
+import html2canvas from "html2canvas";
 
 // Register ChartJS components
 ChartJS.register(
@@ -132,8 +136,8 @@ interface PatientDetail extends Patient {
 // Mock data - In real application, this would come from API
 const mockCurrentDoctor: Doctor = {
   id: "d1",
-  name: "Dr. Nimal Fernando",
-  email: "nimal.fernando@hospital.lk",
+  name: "Dr. Gagana Methmal",
+  email: "gaganam220@gmail.com",
   avatar: "/api/placeholder/150/150",
   specialization: "Psychiatrist",
   hospital: "Colombo General Hospital",
@@ -142,18 +146,23 @@ const mockCurrentDoctor: Doctor = {
 const mockPatients: Patient[] = [
   {
     id: "p1",
-    name: "Kasun Perera",
-    age: 28,
+    name: "Gagana Methmal",
+    age: 21,
     gender: "Male",
-    avatar: "/api/placeholder/150/150",
+    avatar: "",
     lastActivity: "10 minutes ago",
     riskLevel: "high",
     sentimentScore: 0.3,
     diagnosis: "Depression",
     status: "active",
     contact: {
-      email: "kasun@email.com",
-      phone: "+94 77 123 4567",
+      email: "gaganam220@email.com",
+      phone: "+94 761823473",
+    },
+    emergencyContact: {
+      name: "Samantha",
+      relation: "Dad",
+      phone: "+94 761823475",
     },
   },
   {
@@ -251,6 +260,17 @@ const mockAppointments: Appointment[] = [
     type: "virtual",
     notes: "Therapy session",
   },
+  // Added a new appointment for May 22nd, 2025
+  {
+    id: "a4",
+    patientId: "p3",
+    patientName: "Gagana Methmal",
+    date: "2025-05-22",
+    time: "11.30 AM",
+    status: "scheduled",
+    type: "in-person",
+    notes: "Monthly checkup and medication review",
+  },
 ];
 
 // Generate random sentiment data for the past 30 days
@@ -328,6 +348,167 @@ const generatePatientDetail = (patient: Patient): PatientDetail => {
   };
 };
 
+// PDF Report Generation Function
+const generatePDF = async (patient: PatientDetail) => {
+  try {
+    // Show loading indicator
+    document.getElementById("pdf-loading")?.classList.remove("hidden");
+
+    const reportElement = document.getElementById("patient-report");
+    if (!reportElement) return;
+
+    const canvas = await html2canvas(reportElement, {
+      scale: 1.5, // Higher scale for better quality
+      useCORS: true,
+      logging: false,
+      backgroundColor: "#ffffff",
+    });
+
+    const imgData = canvas.toDataURL("image/png");
+
+    // A4 size: 210 x 297 mm
+    const pdf = new jsPDF("p", "mm", "a4");
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+
+    // Add header
+    pdf.setFillColor(59, 130, 246); // Blue background
+    pdf.rect(0, 0, pageWidth, 25, "F");
+    pdf.setTextColor(255, 255, 255);
+    pdf.setFontSize(18);
+    pdf.text("MindfulCare Mental Health Report", pageWidth / 2, 15, {
+      align: "center",
+    });
+
+    // Add date
+    pdf.setTextColor(100, 100, 100);
+    pdf.setFontSize(10);
+    pdf.text(`Generated: ${format(new Date(), "PPP")}`, pageWidth - 20, 30, {
+      align: "right",
+    });
+
+    // Add the patient info
+    pdf.setTextColor(0, 0, 0);
+    pdf.setFontSize(16);
+    pdf.text(`Patient Report: ${patient.name}`, 15, 40);
+
+    pdf.setFontSize(11);
+    pdf.text(
+      `Age: ${patient.age} | Gender: ${
+        patient.gender
+      } | Risk Level: ${patient.riskLevel.toUpperCase()}`,
+      15,
+      48
+    );
+
+    if (patient.diagnosis) {
+      pdf.text(`Diagnosis: ${patient.diagnosis}`, 15, 55);
+    }
+
+    // Add sentiment image
+    const imgHeight = canvas.height * (pageWidth / canvas.width);
+    pdf.addImage(imgData, "PNG", 0, 65, pageWidth, imgHeight);
+
+    // Check if we need to add a new page
+    if (65 + imgHeight > pageHeight) {
+      pdf.addPage();
+      // Add recommendations on new page
+      pdf.setFontSize(14);
+      pdf.text("Recommendations:", 15, 30);
+
+      pdf.setFontSize(11);
+      let yPos = 40;
+      pdf.text("1. Continue with current medication plan", 20, yPos);
+      yPos += 7;
+      pdf.text("2. Schedule follow-up appointment in two weeks", 20, yPos);
+      yPos += 7;
+
+      if (patient.riskLevel === "high") {
+        pdf.text("3. Consider crisis intervention assessment", 20, yPos);
+        yPos += 7;
+        pdf.text("4. Daily check-in with mental health coach", 20, yPos);
+      } else if (patient.riskLevel === "medium") {
+        pdf.text("3. Increase weekly therapy sessions", 20, yPos);
+        yPos += 7;
+        pdf.text("4. Continue monitoring sentiment scores weekly", 20, yPos);
+      } else {
+        pdf.text("3. Maintain current therapy schedule", 20, yPos);
+        yPos += 7;
+        pdf.text("4. Reassess in one month", 20, yPos);
+      }
+    } else {
+      // Add recommendations on same page
+      let yPos = 65 + imgHeight + 15;
+
+      pdf.setFontSize(14);
+      pdf.text("Recommendations:", 15, yPos);
+
+      pdf.setFontSize(11);
+      yPos += 10;
+      pdf.text("1. Continue with current medication plan", 20, yPos);
+      yPos += 7;
+      pdf.text("2. Schedule follow-up appointment in two weeks", 20, yPos);
+      yPos += 7;
+
+      if (patient.riskLevel === "high") {
+        pdf.text("3. Consider crisis intervention assessment", 20, yPos);
+        yPos += 7;
+        pdf.text("4. Daily check-in with mental health coach", 20, yPos);
+      } else if (patient.riskLevel === "medium") {
+        pdf.text("3. Increase weekly therapy sessions", 20, yPos);
+        yPos += 7;
+        pdf.text("4. Continue monitoring sentiment scores weekly", 20, yPos);
+      } else {
+        pdf.text("3. Maintain current therapy schedule", 20, yPos);
+        yPos += 7;
+        pdf.text("4. Reassess in one month", 20, yPos);
+      }
+    }
+
+    // Add footer with doctor info
+    const footerY = pageHeight - 20;
+    pdf.setFontSize(10);
+    pdf.text(`Doctor: ${mockCurrentDoctor.name}`, 15, footerY);
+    pdf.text(`${mockCurrentDoctor.specialization}`, 15, footerY + 5);
+    pdf.text(`${mockCurrentDoctor.hospital}`, 15, footerY + 10);
+
+    // Add confidentiality notice
+    pdf.setTextColor(150, 150, 150);
+    pdf.setFontSize(8);
+    pdf.text("CONFIDENTIAL MEDICAL RECORD", pageWidth - 25, footerY, {
+      align: "right",
+    });
+
+    // Save the PDF
+    pdf.save(`${patient.name.replace(/\s+/g, "_")}_Mental_Health_Report.pdf`);
+
+    // Hide loading indicator
+    document.getElementById("pdf-loading")?.classList.add("hidden");
+
+    // Show success message
+    const successMsg = document.getElementById("pdf-success");
+    if (successMsg) {
+      successMsg.classList.remove("hidden");
+      setTimeout(() => {
+        successMsg.classList.add("hidden");
+      }, 3000);
+    }
+  } catch (error) {
+    console.error("Error generating PDF:", error);
+    // Hide loading indicator
+    document.getElementById("pdf-loading")?.classList.add("hidden");
+
+    // Show error message
+    const errorMsg = document.getElementById("pdf-error");
+    if (errorMsg) {
+      errorMsg.classList.remove("hidden");
+      setTimeout(() => {
+        errorMsg.classList.add("hidden");
+      }, 3000);
+    }
+  }
+};
+
 // Sidebar component
 const Sidebar: React.FC<{
   activeTab: string;
@@ -338,9 +519,8 @@ const Sidebar: React.FC<{
       <div className="h-full flex flex-col justify-between">
         <div>
           <div className="p-4 flex items-center justify-center border-b">
-            <img src="/api/placeholder/40/40" alt="Logo" className="h-8 mr-3" />
             <span className="self-center text-xl font-semibold whitespace-nowrap dark:text-white">
-              MindfulCare
+              MoodSync
             </span>
           </div>
           <div className="px-3 py-5 overflow-y-auto">
@@ -936,6 +1116,8 @@ const PatientDetail: React.FC<{
   onBack: () => void;
 }> = ({ patient, onBack }) => {
   const [activeTab, setActiveTab] = useState("overview");
+  const reportRef = useRef<HTMLDivElement>(null);
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
 
   if (!patient) {
     return null;
@@ -976,6 +1158,18 @@ const PatientDetail: React.FC<{
         tension: 0.4,
       },
     ],
+  };
+
+  // Handle PDF Generation
+  const handleGeneratePDF = async () => {
+    setIsGeneratingPDF(true);
+    try {
+      await generatePDF(patientDetail);
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+    } finally {
+      setIsGeneratingPDF(false);
+    }
   };
 
   return (
@@ -1035,7 +1229,20 @@ const PatientDetail: React.FC<{
                 </p>
               </div>
             </div>
-            <div className="mt-4 sm:mt-0 flex space-x-2">
+            <div className="mt-4 sm:mt-0 flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
+              {/* PDF Report Button */}
+              <button
+                className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 focus:ring-4 focus:ring-green-300 dark:bg-green-500 dark:hover:bg-green-600 focus:outline-none dark:focus:ring-green-800"
+                onClick={handleGeneratePDF}
+                disabled={isGeneratingPDF}
+              >
+                {isGeneratingPDF ? (
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                ) : (
+                  <Download className="w-4 h-4 mr-2" />
+                )}
+                Generate Report
+              </button>
               <button className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 focus:ring-4 focus:ring-blue-300 dark:bg-blue-500 dark:hover:bg-blue-600 focus:outline-none dark:focus:ring-blue-800">
                 <MessageSquare className="w-4 h-4 mr-2" />
                 Message
@@ -1046,6 +1253,37 @@ const PatientDetail: React.FC<{
               </button>
             </div>
           </div>
+        </div>
+
+        {/* Notification messages for PDF generation */}
+        <div
+          id="pdf-loading"
+          className="hidden p-4 mb-4 text-sm text-blue-800 bg-blue-100 rounded-lg dark:bg-blue-900 dark:text-blue-300 mx-6 mt-4"
+          role="alert"
+        >
+          <div className="flex items-center">
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-800 dark:border-blue-300 mr-2"></div>
+            <span className="font-medium">Generating PDF report...</span> This
+            may take a few moments.
+          </div>
+        </div>
+
+        <div
+          id="pdf-success"
+          className="hidden p-4 mb-4 text-sm text-green-800 bg-green-100 rounded-lg dark:bg-green-900 dark:text-green-300 mx-6 mt-4"
+          role="alert"
+        >
+          <span className="font-medium">Success!</span> PDF report has been
+          generated and downloaded.
+        </div>
+
+        <div
+          id="pdf-error"
+          className="hidden p-4 mb-4 text-sm text-red-800 bg-red-100 rounded-lg dark:bg-red-900 dark:text-red-300 mx-6 mt-4"
+          role="alert"
+        >
+          <span className="font-medium">Error!</span> There was a problem
+          generating the PDF report. Please try again.
         </div>
 
         {/* Tab navigation */}
@@ -1108,258 +1346,262 @@ const PatientDetail: React.FC<{
 
         {/* Tab content */}
         <div className="p-6">
-          {activeTab === "overview" && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-                  Patient Information
-                </h3>
-                <ul className="space-y-4">
-                  <li className="flex items-start">
-                    <span className="w-32 text-sm font-medium text-gray-500 dark:text-gray-400">
-                      Contact:
-                    </span>
-                    <div>
-                      <p className="text-sm text-gray-900 dark:text-white">
-                        {patient.contact.email}
-                      </p>
-                      <p className="text-sm text-gray-900 dark:text-white">
-                        {patient.contact.phone}
-                      </p>
-                    </div>
-                  </li>
-                  {patient.emergencyContact && (
+          {/* This div is used for PDF generation */}
+          <div id="patient-report" className="bg-white">
+            {activeTab === "overview" && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                    Patient Information
+                  </h3>
+                  <ul className="space-y-4">
                     <li className="flex items-start">
                       <span className="w-32 text-sm font-medium text-gray-500 dark:text-gray-400">
-                        Emergency Contact:
+                        Contact:
                       </span>
                       <div>
                         <p className="text-sm text-gray-900 dark:text-white">
-                          {patient.emergencyContact.name}
+                          {patient.contact.email}
                         </p>
                         <p className="text-sm text-gray-900 dark:text-white">
-                          {patient.emergencyContact.relation}
-                        </p>
-                        <p className="text-sm text-gray-900 dark:text-white">
-                          {patient.emergencyContact.phone}
+                          {patient.contact.phone}
                         </p>
                       </div>
                     </li>
-                  )}
-                  <li className="flex items-start">
-                    <span className="w-32 text-sm font-medium text-gray-500 dark:text-gray-400">
-                      Status:
-                    </span>
-                    <span
-                      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium
-                      ${
-                        patient.status === "active"
-                          ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300"
-                          : "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300"
-                      }`}
-                    >
-                      {patient.status.charAt(0).toUpperCase() +
-                        patient.status.slice(1)}
-                    </span>
-                  </li>
-                  <li className="flex items-start">
-                    <span className="w-32 text-sm font-medium text-gray-500 dark:text-gray-400">
-                      Last Activity:
-                    </span>
-                    <span className="text-sm text-gray-900 dark:text-white">
-                      {patient.lastActivity}
-                    </span>
-                  </li>
-                </ul>
-              </div>
-
-              <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-                  Current Assessment
-                </h3>
-                <div className="mb-4">
-                  <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Sentiment Score
-                  </h4>
-                  <div className="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
-                    <div
-                      className={`h-2.5 rounded-full ${
-                        patient.sentimentScore < 0.4
-                          ? "bg-red-600"
-                          : patient.sentimentScore < 0.6
-                          ? "bg-yellow-400"
-                          : "bg-green-600"
-                      }`}
-                      style={{ width: `${patient.sentimentScore * 100}%` }}
-                    ></div>
-                  </div>
-                  <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-1">
-                    <span>Negative</span>
-                    <span>Neutral</span>
-                    <span>Positive</span>
-                  </div>
-                </div>
-
-                <div className="mb-4">
-                  <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Risk Assessment
-                  </h4>
-                  <div className="p-4 rounded-lg border border-gray-200 dark:border-gray-700">
-                    <div className="flex items-center">
-                      <div
-                        className={`p-2 rounded-full mr-3
+                    {patient.emergencyContact && (
+                      <li className="flex items-start">
+                        <span className="w-32 text-sm font-medium text-gray-500 dark:text-gray-400">
+                          Emergency Contact:
+                        </span>
+                        <div>
+                          <p className="text-sm text-gray-900 dark:text-white">
+                            {patient.emergencyContact.name}
+                          </p>
+                          <p className="text-sm text-gray-900 dark:text-white">
+                            {patient.emergencyContact.relation}
+                          </p>
+                          <p className="text-sm text-gray-900 dark:text-white">
+                            {patient.emergencyContact.phone}
+                          </p>
+                        </div>
+                      </li>
+                    )}
+                    <li className="flex items-start">
+                      <span className="w-32 text-sm font-medium text-gray-500 dark:text-gray-400">
+                        Status:
+                      </span>
+                      <span
+                        className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium
                         ${
-                          patient.riskLevel === "high"
-                            ? "bg-red-100 dark:bg-red-900"
-                            : patient.riskLevel === "medium"
-                            ? "bg-yellow-100 dark:bg-yellow-900"
-                            : "bg-green-100 dark:bg-green-900"
+                          patient.status === "active"
+                            ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300"
+                            : "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300"
                         }`}
                       >
-                        <AlertCircle
-                          className={`w-5 h-5
+                        {patient.status.charAt(0).toUpperCase() +
+                          patient.status.slice(1)}
+                      </span>
+                    </li>
+                    <li className="flex items-start">
+                      <span className="w-32 text-sm font-medium text-gray-500 dark:text-gray-400">
+                        Last Activity:
+                      </span>
+                      <span className="text-sm text-gray-900 dark:text-white">
+                        {patient.lastActivity}
+                      </span>
+                    </li>
+                  </ul>
+                </div>
+
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                    Current Assessment
+                  </h3>
+                  <div className="mb-4">
+                    <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Sentiment Score
+                    </h4>
+                    <div className="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
+                      <div
+                        className={`h-2.5 rounded-full ${
+                          patient.sentimentScore < 0.4
+                            ? "bg-red-600"
+                            : patient.sentimentScore < 0.6
+                            ? "bg-yellow-400"
+                            : "bg-green-600"
+                        }`}
+                        style={{ width: `${patient.sentimentScore * 100}%` }}
+                      ></div>
+                    </div>
+                    <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      <span>Negative</span>
+                      <span>Neutral</span>
+                      <span>Positive</span>
+                    </div>
+                  </div>
+
+                  <div className="mb-4">
+                    <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Risk Assessment
+                    </h4>
+                    <div className="p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+                      <div className="flex items-center">
+                        <div
+                          className={`p-2 rounded-full mr-3
                           ${
                             patient.riskLevel === "high"
-                              ? "text-red-700 dark:text-red-300"
+                              ? "bg-red-100 dark:bg-red-900"
                               : patient.riskLevel === "medium"
-                              ? "text-yellow-700 dark:text-yellow-300"
-                              : "text-green-700 dark:text-green-300"
+                              ? "bg-yellow-100 dark:bg-yellow-900"
+                              : "bg-green-100 dark:bg-green-900"
                           }`}
-                        />
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-gray-900 dark:text-white">
-                          {patient.riskLevel === "high"
-                            ? "High Risk - Immediate Attention Needed"
-                            : patient.riskLevel === "medium"
-                            ? "Medium Risk - Regular Monitoring Required"
-                            : "Low Risk - Continue Regular Support"}
-                        </p>
-                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                          Last updated: 2 days ago
-                        </p>
+                        >
+                          <AlertCircle
+                            className={`w-5 h-5
+                            ${
+                              patient.riskLevel === "high"
+                                ? "text-red-700 dark:text-red-300"
+                                : patient.riskLevel === "medium"
+                                ? "text-yellow-700 dark:text-yellow-300"
+                                : "text-green-700 dark:text-green-300"
+                            }`}
+                          />
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-gray-900 dark:text-white">
+                            {patient.riskLevel === "high"
+                              ? "High Risk - Immediate Attention Needed"
+                              : patient.riskLevel === "medium"
+                              ? "Medium Risk - Regular Monitoring Required"
+                              : "Low Risk - Continue Regular Support"}
+                          </p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                            Last updated: 2 days ago
+                          </p>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
 
-                <div>
-                  <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Recommended Actions
-                  </h4>
-                  <ul className="space-y-2">
-                    <li className="flex items-start">
-                      <Check className="w-4 h-4 text-green-500 dark:text-green-400 mr-2 mt-0.5" />
-                      <span className="text-sm text-gray-900 dark:text-white">
-                        Schedule follow-up appointment
-                      </span>
-                    </li>
-                    <li className="flex items-start">
-                      <Check className="w-4 h-4 text-green-500 dark:text-green-400 mr-2 mt-0.5" />
-                      <span className="text-sm text-gray-900 dark:text-white">
-                        Review medication effectiveness
-                      </span>
-                    </li>
-                    {patient.riskLevel === "high" && (
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Recommended Actions
+                    </h4>
+                    <ul className="space-y-2">
                       <li className="flex items-start">
-                        <AlertCircle className="w-4 h-4 text-red-500 dark:text-red-400 mr-2 mt-0.5" />
+                        <Check className="w-4 h-4 text-green-500 dark:text-green-400 mr-2 mt-0.5" />
                         <span className="text-sm text-gray-900 dark:text-white">
-                          Consider crisis intervention plan
+                          Schedule follow-up appointment
                         </span>
                       </li>
-                    )}
-                  </ul>
+                      <li className="flex items-start">
+                        <Check className="w-4 h-4 text-green-500 dark:text-green-400 mr-2 mt-0.5" />
+                        <span className="text-sm text-gray-900 dark:text-white">
+                          Review medication effectiveness
+                        </span>
+                      </li>
+                      {patient.riskLevel === "high" && (
+                        <li className="flex items-start">
+                          <AlertCircle className="w-4 h-4 text-red-500 dark:text-red-400 mr-2 mt-0.5" />
+                          <span className="text-sm text-gray-900 dark:text-white">
+                            Consider crisis intervention plan
+                          </span>
+                        </li>
+                      )}
+                    </ul>
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {activeTab === "trends" && (
-            <div className="space-y-6">
-              <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-                  Sentiment Analysis (Last 14 Days)
-                </h3>
-                <div className="h-64">
-                  <Line
-                    data={sentimentChartData}
-                    options={{
-                      responsive: true,
-                      maintainAspectRatio: false,
-                      scales: {
-                        y: {
-                          beginAtZero: true,
-                          max: 1,
-                          title: {
-                            display: true,
-                            text: "Sentiment Score",
+            {activeTab === "trends" && (
+              <div className="space-y-6">
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                    Sentiment Analysis (Last 14 Days)
+                  </h3>
+                  <div className="h-64">
+                    <Line
+                      data={sentimentChartData}
+                      options={{
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                          y: {
+                            beginAtZero: true,
+                            max: 1,
+                            title: {
+                              display: true,
+                              text: "Sentiment Score",
+                            },
+                          },
+                          x: {
+                            title: {
+                              display: true,
+                              text: "Date",
+                            },
                           },
                         },
-                        x: {
-                          title: {
-                            display: true,
-                            text: "Date",
-                          },
-                        },
-                      },
-                    }}
-                  />
+                      }}
+                    />
+                  </div>
+                  <div className="mt-4">
+                    <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Analysis Summary
+                    </h4>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      The patient's sentiment shows moderate fluctuations with
+                      an overall downward trend in the past week, indicating
+                      potential deterioration in mental well-being that requires
+                      attention.
+                    </p>
+                  </div>
                 </div>
-                <div className="mt-4">
-                  <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Analysis Summary
-                  </h4>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    The patient's sentiment shows moderate fluctuations with an
-                    overall downward trend in the past week, indicating
-                    potential deterioration in mental well-being that requires
-                    attention.
-                  </p>
-                </div>
-              </div>
 
-              <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-                  Mood Tracking (Last 14 Days)
-                </h3>
-                <div className="h-64">
-                  <Line
-                    data={moodChartData}
-                    options={{
-                      responsive: true,
-                      maintainAspectRatio: false,
-                      scales: {
-                        y: {
-                          beginAtZero: true,
-                          max: 10,
-                          title: {
-                            display: true,
-                            text: "Mood Score",
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                    Mood Tracking (Last 14 Days)
+                  </h3>
+                  <div className="h-64">
+                    <Line
+                      data={moodChartData}
+                      options={{
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                          y: {
+                            beginAtZero: true,
+                            max: 10,
+                            title: {
+                              display: true,
+                              text: "Mood Score",
+                            },
+                          },
+                          x: {
+                            title: {
+                              display: true,
+                              text: "Date",
+                            },
                           },
                         },
-                        x: {
-                          title: {
-                            display: true,
-                            text: "Date",
-                          },
-                        },
-                      },
-                    }}
-                  />
-                </div>
-                <div className="mt-4">
-                  <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Analysis Summary
-                  </h4>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    The patient's self-reported mood has been consistently below
-                    average with some improvement over the weekend. Correlation
-                    with life events and therapy sessions should be examined.
-                  </p>
+                      }}
+                    />
+                  </div>
+                  <div className="mt-4">
+                    <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Analysis Summary
+                    </h4>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      The patient's self-reported mood has been consistently
+                      below average with some improvement over the weekend.
+                      Correlation with life events and therapy sessions should
+                      be examined.
+                    </p>
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
 
           {activeTab === "notes" && (
             <div className="space-y-4">
@@ -1773,6 +2015,11 @@ const Appointments: React.FC = () => {
     setCurrentDate((prevDate) => subDays(prevDate, -1));
   };
 
+  // Function to set date to May 22, 2025
+  const showMay22 = () => {
+    setCurrentDate(new Date(2025, 4, 22)); // Note: Month is 0-indexed (4 = May)
+  };
+
   return (
     <div className="p-4">
       <div className="mb-6">
@@ -1780,10 +2027,19 @@ const Appointments: React.FC = () => {
           <h2 className="text-xl font-bold text-gray-900 dark:text-white">
             Appointment Schedule
           </h2>
-          <button className="mt-3 sm:mt-0 inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 focus:ring-4 focus:ring-blue-300 dark:bg-blue-500 dark:hover:bg-blue-600 focus:outline-none dark:focus:ring-blue-800">
-            <Calendar className="w-4 h-4 mr-2" />
-            Create New Appointment
-          </button>
+          <div className="flex space-x-2">
+            <button
+              onClick={showMay22}
+              className="mt-3 sm:mt-0 inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 focus:ring-4 focus:ring-green-300 dark:bg-green-500 dark:hover:bg-green-600 focus:outline-none dark:focus:ring-green-800"
+            >
+              <Calendar className="w-4 h-4 mr-2" />
+              Show May 22
+            </button>
+            <button className="mt-3 sm:mt-0 inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 focus:ring-4 focus:ring-blue-300 dark:bg-blue-500 dark:hover:bg-blue-600 focus:outline-none dark:focus:ring-blue-800">
+              <Calendar className="w-4 h-4 mr-2" />
+              Create New Appointment
+            </button>
+          </div>
         </div>
       </div>
 

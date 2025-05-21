@@ -2,6 +2,7 @@ import { Brain } from "lucide-react";
 import React, { useState, useRef, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext"; // Adjust the path as needed
+import profileImage from "../assets/profile.jpeg"; // Import your profile image
 
 // Navigation links for the main menu
 const NAV_LINKS = [
@@ -178,8 +179,8 @@ const Navbar: React.FC = () => {
                 <div className="relative">
                   <img
                     className="w-10 h-10 rounded-full ring-2 ring-gray-300 dark:ring-gray-500"
-                    src="https://i1.sndcdn.com/artworks-lEAsN83kbdQScsx7-DmxtKw-t500x500.jpg"
-                    alt="user avatar"
+                    src={profileImage}
+                    alt="user profile"
                   />
                   <span className="top-0 left-7 absolute w-3 h-3 bg-green-400 border-2 border-white dark:border-gray-800 rounded-full" />
                 </div>
@@ -250,8 +251,8 @@ const Navbar: React.FC = () => {
                   <div className="flex-shrink-0">
                     <img
                       className="w-10 h-10 rounded-full ring-2 ring-gray-300 dark:ring-gray-500"
-                      src="https://i1.sndcdn.com/artworks-lEAsN83kbdQScsx7-DmxtKw-t500x500.jpg"
-                      alt="user avatar"
+                      src={profileImage}
+                      alt="user profile"
                     />
                   </div>
                   <div className="flex-1 min-w-0">

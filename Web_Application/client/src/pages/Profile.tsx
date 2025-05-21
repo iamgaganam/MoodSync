@@ -1,5 +1,5 @@
 // src/pages/UserProfilePages.tsx
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   FaUser,
   FaChartLine,
@@ -32,8 +32,24 @@ import { useUserProfile } from "../hooks/useUserProfile";
 import { useAuth } from "../context/AuthContext";
 import profileImage from "../assets/profile.jpeg";
 
+// Types for our mood and journal data
+interface MoodEntry {
+  date: string;
+  mood: string;
+  score: number;
+  note: string;
+}
+
+interface JournalEntry {
+  id: string;
+  date: string;
+  title: string;
+  content: string;
+  mood: string;
+}
+
 // Sample data (in a real app, this would come from your API)
-const SAMPLE_MOOD_DATA = [
+const INITIAL_MOOD_DATA: MoodEntry[] = [
   {
     date: "2025-02-23",
     mood: "happy",
@@ -79,23 +95,7 @@ const SAMPLE_MOOD_DATA = [
   { date: "2025-03-02", mood: "happy", score: 85, note: "Relaxing Sunday." },
 ];
 
-const SAMPLE_SENTIMENTS = [
-  { category: "Anxiety", score: 35, trend: "down", change: -8 },
-  { category: "Depression", score: 28, trend: "down", change: -5 },
-  { category: "Stress", score: 45, trend: "up", change: 7 },
-  { category: "Social Connection", score: 72, trend: "up", change: 12 },
-  { category: "Self-Esteem", score: 68, trend: "up", change: 3 },
-];
-
-const SAMPLE_WELLNESS_DATA = {
-  sleep: [6.5, 7.2, 8.0, 7.5, 6.8, 7.1, 8.5],
-  exercise: [30, 0, 45, 20, 0, 60, 30],
-  meditation: [10, 5, 15, 10, 10, 5, 0],
-  water: [5, 6, 4, 7, 5, 6, 8],
-  nutrition: [70, 65, 80, 75, 60, 85, 80],
-};
-
-const SAMPLE_JOURNAL_ENTRIES = [
+const INITIAL_JOURNAL_ENTRIES: JournalEntry[] = [
   {
     id: "1",
     date: "2025-03-01",
@@ -121,6 +121,43 @@ const SAMPLE_JOURNAL_ENTRIES = [
     mood: "sad",
   },
 ];
+
+const SAMPLE_SENTIMENTS = [
+  { category: "Anxiety", score: 35, trend: "down", change: -8 },
+  { category: "Depression", score: 28, trend: "down", change: -5 },
+  { category: "Stress", score: 45, trend: "up", change: 7 },
+  { category: "Social Connection", score: 72, trend: "up", change: 12 },
+  { category: "Self-Esteem", score: 68, trend: "up", change: 3 },
+];
+
+const SAMPLE_WELLNESS_DATA = {
+  sleep: [6.5, 7.2, 8.0, 7.5, 6.8, 7.1, 8.5],
+  exercise: [30, 0, 45, 20, 0, 60, 30],
+  meditation: [10, 5, 15, 10, 10, 5, 0],
+  water: [5, 6, 4, 7, 5, 6, 8],
+  nutrition: [70, 65, 80, 75, 60, 85, 80],
+};
+
+// Create context for sharing mood and journal data
+interface MoodJournalContextType {
+  moodEntries: MoodEntry[];
+  setMoodEntries: React.Dispatch<React.SetStateAction<MoodEntry[]>>;
+  journalEntries: JournalEntry[];
+  setJournalEntries: React.Dispatch<React.SetStateAction<JournalEntry[]>>;
+}
+
+const MoodJournalContext = React.createContext<MoodJournalContextType | null>(
+  null
+);
+
+// Custom hook to use the mood-journal context
+const useMoodJournal = () => {
+  const context = React.useContext(MoodJournalContext);
+  if (!context) {
+    throw new Error("useMoodJournal must be used within a MoodJournalProvider");
+  }
+  return context;
+};
 
 // NavItem Component
 interface NavItemProps {
@@ -468,20 +505,62 @@ const MyProfile: React.FC = () => {
   );
 };
 
-// UserDashboard Component
+// UserDashboard Component with mood logging functionality
 const UserDashboard: React.FC = () => {
-  const todayMood = SAMPLE_MOOD_DATA[SAMPLE_MOOD_DATA.length - 1];
+  const { moodEntries, setMoodEntries } = useMoodJournal();
   const [newMood, setNewMood] = useState("");
   const [newMoodNote, setNewMoodNote] = useState("");
+  const [newMoodScore, setNewMoodScore] = useState<number>(75); // Default score
   const [showMoodForm, setShowMoodForm] = useState(false);
 
+  // Get the most recent mood entry
+  const todayMood =
+    moodEntries.length > 0
+      ? moodEntries[moodEntries.length - 1]
+      : { mood: "neutral", score: 70, note: "No mood logged yet" };
+
   const handleAddMood = () => {
-    // In a real app, this would update your state or make an API call
+    // Get today's date in YYYY-MM-DD format
+    const today = new Date().toISOString().split("T")[0];
+
+    // Create new mood entry
+    const moodEntry: MoodEntry = {
+      date: today,
+      mood: newMood,
+      score: newMoodScore,
+      note: newMoodNote || "No note added",
+    };
+
+    // Add to state
+    setMoodEntries([...moodEntries, moodEntry]);
+
+    // Reset form
     setShowMoodForm(false);
     setNewMood("");
     setNewMoodNote("");
-    alert("Mood logged successfully!");
+    setNewMoodScore(75);
   };
+
+  // Calculate mood score based on mood selection
+  const calculateMoodScore = (mood: string): number => {
+    switch (mood) {
+      case "happy":
+        return Math.floor(Math.random() * 20) + 80; // 80-100
+      case "neutral":
+        return Math.floor(Math.random() * 20) + 50; // 50-70
+      case "sad":
+        return Math.floor(Math.random() * 30) + 20; // 20-50
+      default:
+        return 50;
+    }
+  };
+
+  // Update mood score when mood changes
+  useEffect(() => {
+    if (newMood) {
+      setNewMoodScore(calculateMoodScore(newMood));
+    }
+  }, [newMood]);
 
   return (
     <div>
@@ -504,7 +583,7 @@ const UserDashboard: React.FC = () => {
         />
         <StatCard
           title="Journal Entries"
-          value={SAMPLE_JOURNAL_ENTRIES.length}
+          value={INITIAL_JOURNAL_ENTRIES.length}
           icon={<FaRoute />}
           color="bg-green-600"
         />
@@ -597,7 +676,8 @@ const UserDashboard: React.FC = () => {
           )}
 
           <div className="space-y-4">
-            {SAMPLE_MOOD_DATA.slice(-5)
+            {moodEntries
+              .slice(-5)
               .reverse()
               .map((entry, index) => (
                 <div
@@ -1025,10 +1105,10 @@ const MentalHealthInsights: React.FC = () => {
   );
 };
 
-// Journal Component
+// Journal Component with entries state management
 const Journal: React.FC = () => {
   const [activeTab, setActiveTab] = useState<"entries" | "new">("entries");
-  const [entries, setEntries] = useState(SAMPLE_JOURNAL_ENTRIES);
+  const { journalEntries, setJournalEntries } = useMoodJournal();
   const [newEntry, setNewEntry] = useState({
     title: "",
     content: "",
@@ -1037,9 +1117,12 @@ const Journal: React.FC = () => {
 
   const handleAddEntry = () => {
     const today = new Date().toISOString().split("T")[0];
-    const newId = (parseInt(entries[0].id) + 1).toString();
+    const newId =
+      journalEntries.length > 0
+        ? (parseInt(journalEntries[0].id) + 1).toString()
+        : "1";
 
-    const entry = {
+    const entry: JournalEntry = {
       id: newId,
       date: today,
       title: newEntry.title,
@@ -1047,7 +1130,7 @@ const Journal: React.FC = () => {
       mood: newEntry.mood,
     };
 
-    setEntries([entry, ...entries]);
+    setJournalEntries([entry, ...journalEntries]);
     setNewEntry({
       title: "",
       content: "",
@@ -1058,7 +1141,7 @@ const Journal: React.FC = () => {
 
   const handleDeleteEntry = (id: string) => {
     if (window.confirm("Are you sure you want to delete this entry?")) {
-      setEntries(entries.filter((entry) => entry.id !== id));
+      setJournalEntries(journalEntries.filter((entry) => entry.id !== id));
     }
   };
 
@@ -1092,41 +1175,59 @@ const Journal: React.FC = () => {
       <div className="p-6">
         {activeTab === "entries" ? (
           <div className="space-y-6">
-            {entries.map((entry) => (
-              <div
-                key={entry.id}
-                className="border border-gray-200 rounded-lg p-5 hover:border-blue-200 hover:shadow-sm transition-all duration-200"
-              >
-                <div className="flex justify-between items-start mb-3">
-                  <div>
-                    <h3 className="font-bold text-lg">{entry.title}</h3>
-                    <p className="text-sm text-gray-500">
-                      {new Date(entry.date).toLocaleDateString()}
-                    </p>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <MoodIcon mood={entry.mood} size={20} />
-                    <div className="dropdown relative">
-                      <button className="text-gray-500 hover:bg-gray-100 p-1 rounded-full">
-                        <FaEllipsisH size={16} />
-                      </button>
-                      <div className="dropdown-menu absolute right-0 hidden bg-white shadow-lg rounded-lg p-2 z-10">
-                        <button className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded">
-                          Edit
+            {journalEntries.length > 0 ? (
+              journalEntries.map((entry) => (
+                <div
+                  key={entry.id}
+                  className="border border-gray-200 rounded-lg p-5 hover:border-blue-200 hover:shadow-sm transition-all duration-200"
+                >
+                  <div className="flex justify-between items-start mb-3">
+                    <div>
+                      <h3 className="font-bold text-lg">{entry.title}</h3>
+                      <p className="text-sm text-gray-500">
+                        {new Date(entry.date).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <MoodIcon mood={entry.mood} size={20} />
+                      <div className="dropdown relative">
+                        <button className="text-gray-500 hover:bg-gray-100 p-1 rounded-full">
+                          <FaEllipsisH size={16} />
                         </button>
-                        <button
-                          className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 rounded"
-                          onClick={() => handleDeleteEntry(entry.id)}
-                        >
-                          Delete
-                        </button>
+                        <div className="dropdown-menu absolute right-0 hidden bg-white shadow-lg rounded-lg p-2 z-10">
+                          <button className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded">
+                            Edit
+                          </button>
+                          <button
+                            className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 rounded"
+                            onClick={() => handleDeleteEntry(entry.id)}
+                          >
+                            Delete
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
+                  <p className="whitespace-pre-line">{entry.content}</p>
                 </div>
-                <p className="whitespace-pre-line">{entry.content}</p>
+              ))
+            ) : (
+              <div className="text-center py-10">
+                <FaPen className="mx-auto text-gray-300 text-4xl mb-4" />
+                <h3 className="text-lg font-medium text-gray-700 mb-2">
+                  No Journal Entries Yet
+                </h3>
+                <p className="text-gray-500 mb-6">
+                  Start documenting your thoughts and feelings
+                </p>
+                <button
+                  className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  onClick={() => setActiveTab("new")}
+                >
+                  Create Your First Entry
+                </button>
               </div>
-            ))}
+            )}
           </div>
         ) : (
           <div>
@@ -1232,9 +1333,29 @@ const Journal: React.FC = () => {
 
 // Main UserProfilePages Component
 const UserProfilePages: React.FC = () => {
-  const [activeTab, setActiveTab] = useState("dashboard");
+  const [activeTab, setActiveTab] = useState("profile"); // Changed from "dashboard" to "profile"
   const { isLoggedIn, user } = useAuth();
   const { error, refreshProfile } = useUserProfile();
+
+  // Initialize state for mood and journal entries with localStorage if available
+  const [moodEntries, setMoodEntries] = useState<MoodEntry[]>(() => {
+    const savedMoods = localStorage.getItem("mood-entries");
+    return savedMoods ? JSON.parse(savedMoods) : INITIAL_MOOD_DATA;
+  });
+
+  const [journalEntries, setJournalEntries] = useState<JournalEntry[]>(() => {
+    const savedJournals = localStorage.getItem("journal-entries");
+    return savedJournals ? JSON.parse(savedJournals) : INITIAL_JOURNAL_ENTRIES;
+  });
+
+  // Save to localStorage whenever entries change
+  useEffect(() => {
+    localStorage.setItem("mood-entries", JSON.stringify(moodEntries));
+  }, [moodEntries]);
+
+  useEffect(() => {
+    localStorage.setItem("journal-entries", JSON.stringify(journalEntries));
+  }, [journalEntries]);
 
   // Handle authentication error at the top level
   if (error && error.includes("Not authenticated")) {
@@ -1252,82 +1373,86 @@ const UserProfilePages: React.FC = () => {
       case "journal":
         return <Journal />;
       default:
-        return <UserDashboard />;
+        return <MyProfile />; // Default to profile now
     }
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Navbar />
-      <div className="pt-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex flex-col lg:flex-row gap-8">
-          <div className="lg:w-64 flex-shrink-0">
-            <div className="bg-white rounded-xl shadow-sm p-4 mb-6 space-y-2 hover:shadow-md transition-shadow duration-300">
-              <NavItem
-                icon={<FaUser />}
-                title="My Profile"
-                active={activeTab === "profile"}
-                onClick={() => setActiveTab("profile")}
-              />
-              <NavItem
-                icon={<FaChartLine />}
-                title="Dashboard"
-                active={activeTab === "dashboard"}
-                onClick={() => setActiveTab("dashboard")}
-              />
-              <NavItem
-                icon={<FaBrain />}
-                title="Mental Health Insights"
-                active={activeTab === "insights"}
-                onClick={() => setActiveTab("insights")}
-              />
-              <NavItem
-                icon={<FaPen />}
-                title="Journal"
-                active={activeTab === "journal"}
-                onClick={() => setActiveTab("journal")}
-              />
-            </div>
+    <MoodJournalContext.Provider
+      value={{ moodEntries, setMoodEntries, journalEntries, setJournalEntries }}
+    >
+      <div className="min-h-screen bg-gray-50">
+        <Navbar />
+        <div className="pt-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="flex flex-col lg:flex-row gap-8">
+            <div className="lg:w-64 flex-shrink-0">
+              <div className="bg-white rounded-xl shadow-sm p-4 mb-6 space-y-2 hover:shadow-md transition-shadow duration-300">
+                <NavItem
+                  icon={<FaUser />}
+                  title="My Profile"
+                  active={activeTab === "profile"}
+                  onClick={() => setActiveTab("profile")}
+                />
+                <NavItem
+                  icon={<FaChartLine />}
+                  title="Dashboard"
+                  active={activeTab === "dashboard"}
+                  onClick={() => setActiveTab("dashboard")}
+                />
+                <NavItem
+                  icon={<FaBrain />}
+                  title="Mental Health Insights"
+                  active={activeTab === "insights"}
+                  onClick={() => setActiveTab("insights")}
+                />
+                <NavItem
+                  icon={<FaPen />}
+                  title="Journal"
+                  active={activeTab === "journal"}
+                  onClick={() => setActiveTab("journal")}
+                />
+              </div>
 
-            <div className="bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl shadow-md p-6 text-white">
-              <h3 className="font-bold mb-2">Need immediate support?</h3>
-              <p className="text-sm mb-4 text-blue-100">
-                Our professional counselors are available 24/7.
-              </p>
-              <button className="w-full bg-white text-blue-600 rounded-lg py-2 font-medium hover:bg-blue-50 transition-colors">
-                Contact Support
-              </button>
-            </div>
-          </div>
-
-          <div className="flex-1">
-            {/* Welcome message with real user name when authenticated */}
-            {isLoggedIn && user && (
-              <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 mb-6 flex items-center">
-                <div className="mr-4 bg-blue-600 text-white p-3 rounded-xl">
-                  <FaUser />
-                </div>
-                <div className="flex-1">
-                  <h2 className="font-medium text-blue-800">
-                    Welcome back, {user.name}
-                  </h2>
-                  <p className="text-sm text-blue-600">
-                    Track your mental health journey and stay connected with
-                    your support system
-                  </p>
-                </div>
-                <button className="bg-white text-blue-600 px-4 py-2 rounded-lg font-medium hover:bg-blue-600 hover:text-white transition-colors shadow-sm">
-                  Get Started
+              <div className="bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl shadow-md p-6 text-white">
+                <h3 className="font-bold mb-2">Need immediate support?</h3>
+                <p className="text-sm mb-4 text-blue-100">
+                  Our professional counselors are available 24/7.
+                </p>
+                <button className="w-full bg-white text-blue-600 rounded-lg py-2 font-medium hover:bg-blue-50 transition-colors">
+                  Contact Support
                 </button>
               </div>
-            )}
+            </div>
 
-            {renderContent()}
+            <div className="flex-1">
+              {/* Welcome message with real user name when authenticated */}
+              {isLoggedIn && user && (
+                <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 mb-6 flex items-center">
+                  <div className="mr-4 bg-blue-600 text-white p-3 rounded-xl">
+                    <FaUser />
+                  </div>
+                  <div className="flex-1">
+                    <h2 className="font-medium text-blue-800">
+                      Welcome back, {user.name}
+                    </h2>
+                    <p className="text-sm text-blue-600">
+                      Track your mental health journey and stay connected with
+                      your support system
+                    </p>
+                  </div>
+                  <button className="bg-white text-blue-600 px-4 py-2 rounded-lg font-medium hover:bg-blue-600 hover:text-white transition-colors shadow-sm">
+                    Get Started
+                  </button>
+                </div>
+              )}
+
+              {renderContent()}
+            </div>
           </div>
         </div>
+        <Footer />
       </div>
-      <Footer />
-    </div>
+    </MoodJournalContext.Provider>
   );
 };
 
