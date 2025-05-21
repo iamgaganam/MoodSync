@@ -12,10 +12,10 @@ import {
   ChevronLeft,
   ChevronRight,
   X,
+  CheckCircle,
 } from "lucide-react";
 import Footer from "../components/Footer";
 import Navbar from "../components/Navbar";
-import { useAuth } from "../context/AuthContext"; // Import useAuth
 
 // Types
 interface Doctor {
@@ -67,9 +67,6 @@ interface FilterOptions {
 }
 
 const DoctorChannelPage: React.FC = () => {
-  // Use auth context
-  const { isLoggedIn, user, isInitialized } = useAuth();
-
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [filters, setFilters] = useState<FilterOptions>({
@@ -83,6 +80,15 @@ const DoctorChannelPage: React.FC = () => {
   const [showProfileModal, setShowProfileModal] = useState<boolean>(false);
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
   const [showFilters, setShowFilters] = useState<boolean>(false);
+
+  // Success dialog state
+  const [showSuccessDialog, setShowSuccessDialog] = useState<boolean>(false);
+  const [bookingDetails, setBookingDetails] = useState<{
+    doctorName: string;
+    time: string;
+    date: string;
+    hospital: string;
+  } | null>(null);
 
   // Specialties for filter
   const specialties = [
@@ -303,68 +309,35 @@ const DoctorChannelPage: React.FC = () => {
     );
   });
 
-  // Handle time slot selection with auth context integration
+  // Handle time slot selection
   const handleTimeSelect = async (doctorId: string, time: string) => {
     const selectedDoc = doctors.find((d) => d.id === doctorId);
     if (!selectedDoc) return;
 
     try {
-      // Check if auth is initialized and user is logged in
-      if (!isInitialized) {
-        console.log("Authentication is still initializing...");
-        return;
-      }
-
-      if (!isLoggedIn) {
-        alert("Please log in to book an appointment");
-        // Redirect to login page
-        window.location.href =
-          "/login?redirect=" + encodeURIComponent(window.location.pathname);
-        return;
-      }
-
       // Show loading spinner
       setLoading(true);
 
-      // Get token from localStorage using your key
-      const token = localStorage.getItem("access_token");
+      // Simulate API call with a delay
+      await new Promise((resolve) => setTimeout(resolve, 800));
 
-      if (!token) {
-        throw new Error("Authentication token not found");
-      }
-
-      // Call the booking API
-      const response = await fetch("http://localhost:8000/api/bookings/book", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          doctorId,
-          time,
-          date: filters.date,
-        }),
+      // Set booking details for success dialog
+      setBookingDetails({
+        doctorName: selectedDoc.name,
+        time: time,
+        date: filters.date,
+        hospital: selectedDoc.hospitalName,
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || "Failed to book appointment");
+      // Show success dialog
+      setShowSuccessDialog(true);
+
+      // Close the profile modal if it's open
+      if (showProfileModal) {
+        setShowProfileModal(false);
       }
-
-      const result = await response.json();
-
-      // Display success message
-      alert(
-        `Appointment booked with ${selectedDoc.name} at ${time} on ${filters.date}.\nA confirmation SMS has been sent to your registered phone number.`
-      );
     } catch (error) {
       console.error("Error booking appointment:", error);
-      alert(
-        `Failed to book appointment: ${
-          error instanceof Error ? error.message : "Unknown error"
-        }`
-      );
     } finally {
       setLoading(false);
     }
@@ -404,6 +377,16 @@ const DoctorChannelPage: React.FC = () => {
       ...prev,
       [key]: value,
     }));
+  };
+
+  // Format date for display
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString("en-US", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
   };
 
   return (
@@ -561,13 +544,7 @@ const DoctorChannelPage: React.FC = () => {
                 {filteredDoctors.length} doctors available
               </h2>
               <div className="text-sm text-gray-500">
-                For{" "}
-                {new Date(filters.date).toLocaleDateString("en-US", {
-                  weekday: "long",
-                  year: "numeric",
-                  month: "long",
-                  day: "numeric",
-                })}
+                For {formatDate(filters.date)}
               </div>
             </div>
           )}
@@ -804,13 +781,7 @@ const DoctorChannelPage: React.FC = () => {
 
                 <div className="mt-6 border-t border-gray-200 pt-6">
                   <h3 className="text-lg font-medium text-gray-900 mb-3">
-                    Available Times for{" "}
-                    {new Date(filters.date).toLocaleDateString("en-US", {
-                      weekday: "long",
-                      year: "numeric",
-                      month: "long",
-                      day: "numeric",
-                    })}
+                    Available Times for {formatDate(filters.date)}
                   </h3>
                   <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
                     {selectedDoctor.availableTimes.map((time) => (
@@ -818,7 +789,6 @@ const DoctorChannelPage: React.FC = () => {
                         key={time}
                         onClick={() => {
                           handleTimeSelect(selectedDoctor.id, time);
-                          closeProfileModal();
                         }}
                         className="py-3 px-4 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-md text-sm font-medium transition-colors border border-indigo-100"
                       >
@@ -855,7 +825,6 @@ const DoctorChannelPage: React.FC = () => {
                           selectedDoctor.id,
                           selectedDoctor.availableTimes[0]
                         );
-                        closeProfileModal();
                       }
                     }}
                     className="bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-6 rounded-md text-sm font-medium transition-colors"
@@ -863,6 +832,62 @@ const DoctorChannelPage: React.FC = () => {
                     Book Appointment
                   </button>
                 </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Success Dialog */}
+      {showSuccessDialog && bookingDetails && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+            <div className="p-6">
+              <div className="flex items-center justify-center mb-4">
+                <div className="bg-green-100 rounded-full p-3">
+                  <CheckCircle className="h-10 w-10 text-green-500" />
+                </div>
+              </div>
+
+              <h2 className="text-2xl font-bold text-center text-gray-900 mb-4">
+                Booking Confirmed!
+              </h2>
+
+              <div className="bg-gray-50 rounded-lg p-4 mb-4">
+                <p className="text-gray-800 font-medium mb-2">
+                  Appointment details:
+                </p>
+                <ul className="space-y-2 text-gray-600">
+                  <li className="flex items-start">
+                    <User className="h-5 w-5 text-gray-400 mr-2 mt-0.5" />
+                    <span>Doctor: {bookingDetails.doctorName}</span>
+                  </li>
+                  <li className="flex items-start">
+                    <Calendar className="h-5 w-5 text-gray-400 mr-2 mt-0.5" />
+                    <span>Date: {formatDate(bookingDetails.date)}</span>
+                  </li>
+                  <li className="flex items-start">
+                    <Clock className="h-5 w-5 text-gray-400 mr-2 mt-0.5" />
+                    <span>Time: {bookingDetails.time}</span>
+                  </li>
+                  <li className="flex items-start">
+                    <MapPin className="h-5 w-5 text-gray-400 mr-2 mt-0.5" />
+                    <span>Location: {bookingDetails.hospital}</span>
+                  </li>
+                </ul>
+              </div>
+
+              <p className="text-gray-600 text-center mb-6">
+                A confirmation has been sent to your registered contact details.
+              </p>
+
+              <div className="flex justify-center">
+                <button
+                  onClick={() => setShowSuccessDialog(false)}
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-8 rounded-md text-sm font-medium transition-colors"
+                >
+                  Done
+                </button>
               </div>
             </div>
           </div>
