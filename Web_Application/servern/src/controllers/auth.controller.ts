@@ -1,4 +1,3 @@
-// src/controllers/auth.controller.ts
 import { Request, Response } from "express";
 import User, { IUser } from "../models/user.model";
 import {
@@ -6,12 +5,11 @@ import {
   generateRefreshToken,
   verifyRefreshToken,
   generateRandomToken,
-  TokenPayload, // Import TokenPayload interface
+  TokenPayload,
 } from "../utils/jwt.utils";
 import winston from "winston";
 import mongoose from "mongoose";
 
-// Initialize logger
 const logger = winston.createLogger({
   level: process.env.LOG_LEVEL || "info",
   format: winston.format.combine(
@@ -28,38 +26,29 @@ const logger = winston.createLogger({
   ],
 });
 
-/**
- * Get user ID as string, handling different possible types
- */
+// Handle different user ID formats consistently
 const getUserIdAsString = (user: any): string => {
   if (!user) return "";
 
-  // Handle MongoDB ObjectID
   if (user._id && typeof user._id === "object" && user._id.toString) {
     return user._id.toString();
   }
 
-  // Handle string ID
   if (user._id && typeof user._id === "string") {
     return user._id;
   }
 
-  // Fallback to user.id
   if (user.id) {
     return typeof user.id === "object" ? user.id.toString() : String(user.id);
   }
 
-  // Last resort
   return String(user._id || "");
 };
 
-/**
- * Validates password strength
- */
+// Password strength validation
 const validatePasswordStrength = (
   password: string
 ): { isValid: boolean; message?: string } => {
-  // Minimum length check
   if (password.length < 8) {
     return {
       isValid: false,
@@ -67,7 +56,6 @@ const validatePasswordStrength = (
     };
   }
 
-  // Check for at least one uppercase letter
   if (!/[A-Z]/.test(password)) {
     return {
       isValid: false,
@@ -75,7 +63,6 @@ const validatePasswordStrength = (
     };
   }
 
-  // Check for at least one lowercase letter
   if (!/[a-z]/.test(password)) {
     return {
       isValid: false,
@@ -83,7 +70,6 @@ const validatePasswordStrength = (
     };
   }
 
-  // Check for at least one number
   if (!/\d/.test(password)) {
     return {
       isValid: false,
@@ -91,7 +77,6 @@ const validatePasswordStrength = (
     };
   }
 
-  // Check for at least one special character
   if (!/[!@#$%^&*(),.?":{}|<>]/.test(password)) {
     return {
       isValid: false,
@@ -99,14 +84,9 @@ const validatePasswordStrength = (
     };
   }
 
-  // All checks passed
   return { isValid: true };
 };
 
-/**
- * Register a new user
- * @route POST /api/auth/register
- */
 export const register = async (req: Request, res: Response): Promise<void> => {
   try {
     const {
@@ -119,7 +99,6 @@ export const register = async (req: Request, res: Response): Promise<void> => {
       role = "user",
     } = req.body;
 
-    // Check if passwords match
     if (password !== confirmPassword) {
       res.status(400).json({
         success: false,
@@ -128,7 +107,6 @@ export const register = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    // Check if email is already in use
     const existingUser = await User.findOne({ email });
     if (existingUser) {
       res.status(400).json({
@@ -138,7 +116,6 @@ export const register = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    // Check password strength
     const passwordCheck = validatePasswordStrength(password);
     if (!passwordCheck.isValid) {
       res.status(400).json({
@@ -148,23 +125,20 @@ export const register = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    // Create new user with all fields
     const newUser = {
       name,
       email,
-      mobileNumber: mobileNumber || "", // Default to empty string if not provided
-      emergencyContact: emergencyContact || "", // Default to empty string if not provided
-      password, // Will be hashed by pre-save hook
+      mobileNumber: mobileNumber || "",
+      emergencyContact: emergencyContact || "",
+      password,
       profileImage: "",
       role,
-      // Additional fields
-      emailVerified: false, // Require email verification
+      emailVerified: false,
       emailVerificationToken: generateRandomToken(),
     };
 
     const user = await User.create(newUser);
 
-    // Generate tokens with payload that includes both id and userId
     const payload: TokenPayload = {
       id: getUserIdAsString(user),
       userId: getUserIdAsString(user),
@@ -175,18 +149,14 @@ export const register = async (req: Request, res: Response): Promise<void> => {
     const token = generateToken(payload);
     const refreshToken = generateRefreshToken(payload);
 
-    // Store refreshToken hash in database for future validation
-    // This is optional but adds more security
     user.refreshToken = refreshToken;
     await user.save();
 
-    // Base URL for profile image
     const baseUrl = `${req.protocol}://${req.get("host")}`;
     const profileImageUrl = user.profileImage
       ? `${baseUrl}/uploads/profile-images/${user.profileImage}`
       : "";
 
-    // Return user info and tokens (excluding password)
     res.status(201).json({
       success: true,
       message: "User registered successfully",
@@ -205,7 +175,6 @@ export const register = async (req: Request, res: Response): Promise<void> => {
       },
     });
 
-    // In a real application, send email verification email here
     logger.info(`New user registered: ${user.email}`);
   } catch (error) {
     logger.error("Registration error:", error);
@@ -216,15 +185,10 @@ export const register = async (req: Request, res: Response): Promise<void> => {
   }
 };
 
-/**
- * Login a user
- * @route POST /api/auth/login
- */
 export const login = async (req: Request, res: Response): Promise<void> => {
   try {
     const { email, password } = req.body;
 
-    // Find user by email and explicitly select password field
     const user = await User.findOne({ email }).select("+password");
 
     if (!user) {
@@ -235,7 +199,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    // Check if account is locked
+    // Account lockout check
     if (user.lockUntil && user.lockUntil > new Date()) {
       res.status(401).json({
         success: false,
@@ -244,20 +208,16 @@ export const login = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    // Check password
     const isMatch = await user.comparePassword(password);
 
     if (!isMatch) {
-      // Increment failed login attempts
       user.failedLoginAttempts = (user.failedLoginAttempts || 0) + 1;
 
-      // Lock account if too many failed attempts (e.g., 5)
+      // Lock account after 5 failed attempts for 30 minutes
       if (user.failedLoginAttempts >= 5) {
-        // Lock for 30 minutes
         user.lockUntil = new Date(Date.now() + 30 * 60 * 1000);
       }
 
-      // Skip validation when saving during login
       await user.save({ validateBeforeSave: false });
 
       res.status(401).json({
@@ -267,12 +227,11 @@ export const login = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    // Reset failed login attempts on successful login
+    // Reset failed attempts on successful login
     user.failedLoginAttempts = 0;
     user.lockUntil = undefined;
     user.lastLogin = new Date();
 
-    // Generate tokens with payload that includes both id and userId
     const payload: TokenPayload = {
       id: getUserIdAsString(user),
       userId: getUserIdAsString(user),
@@ -283,19 +242,14 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     const token = generateToken(payload);
     const refreshToken = generateRefreshToken(payload);
 
-    // Store refreshToken in database
     user.refreshToken = refreshToken;
-
-    // Skip validation when saving during login
     await user.save({ validateBeforeSave: false });
 
-    // Base URL for profile image
     const baseUrl = `${req.protocol}://${req.get("host")}`;
     const profileImageUrl = user.profileImage
       ? `${baseUrl}/uploads/profile-images/${user.profileImage}`
       : "";
 
-    // Return user info and tokens
     res.status(200).json({
       success: true,
       message: "Login successful",
@@ -324,10 +278,6 @@ export const login = async (req: Request, res: Response): Promise<void> => {
   }
 };
 
-/**
- * Refresh access token using refresh token
- * @route POST /api/auth/refresh-token
- */
 export const refreshAccessToken = async (
   req: Request,
   res: Response
@@ -343,7 +293,6 @@ export const refreshAccessToken = async (
       return;
     }
 
-    // Verify the refresh token
     const decoded = verifyRefreshToken(refreshToken);
     if (!decoded) {
       res.status(401).json({
@@ -353,7 +302,6 @@ export const refreshAccessToken = async (
       return;
     }
 
-    // Find user by id
     const user = await User.findById(decoded.userId);
     if (!user) {
       res.status(404).json({
@@ -363,8 +311,7 @@ export const refreshAccessToken = async (
       return;
     }
 
-    // Optional: Verify the refresh token matches the one stored in DB
-    // This adds an extra layer of security
+    // Verify stored refresh token matches
     if (user.refreshToken !== refreshToken) {
       res.status(401).json({
         success: false,
@@ -373,7 +320,6 @@ export const refreshAccessToken = async (
       return;
     }
 
-    // Generate new access token with payload that includes both id and userId
     const newAccessToken = generateToken({
       id: getUserIdAsString(user),
       userId: getUserIdAsString(user),
@@ -381,7 +327,6 @@ export const refreshAccessToken = async (
       role: user.role,
     });
 
-    // Return new access token
     res.status(200).json({
       success: true,
       token: newAccessToken,
@@ -395,16 +340,11 @@ export const refreshAccessToken = async (
   }
 };
 
-/**
- * Get current user profile
- * @route GET /api/auth/me
- */
 export const getCurrentUser = async (
   req: Request,
   res: Response
 ): Promise<void> => {
   try {
-    // User ID is attached to request by auth middleware
     const userId = req.user?.userId;
 
     if (!userId) {
@@ -415,7 +355,6 @@ export const getCurrentUser = async (
       return;
     }
 
-    // Find user
     const user = await User.findById(userId).select("-password");
 
     if (!user) {
@@ -426,13 +365,11 @@ export const getCurrentUser = async (
       return;
     }
 
-    // Get base URL for profile image
     const baseUrl = `${req.protocol}://${req.get("host")}`;
     const profileImageUrl = user.profileImage
       ? `${baseUrl}/uploads/profile-images/${user.profileImage}`
       : "";
 
-    // Return user info
     res.status(200).json({
       success: true,
       user: {
@@ -457,17 +394,11 @@ export const getCurrentUser = async (
   }
 };
 
-/**
- * Logout a user
- * @route POST /api/auth/logout
- */
 export const logout = async (req: Request, res: Response): Promise<void> => {
   try {
-    // User ID is attached to request by auth middleware
     const userId = req.user?.userId;
 
     if (userId) {
-      // Find user and clear refresh token
       await User.findByIdAndUpdate(userId, { refreshToken: null });
     }
 
@@ -484,10 +415,6 @@ export const logout = async (req: Request, res: Response): Promise<void> => {
   }
 };
 
-/**
- * Request password reset
- * @route POST /api/auth/forgot-password
- */
 export const forgotPassword = async (
   req: Request,
   res: Response
@@ -495,10 +422,9 @@ export const forgotPassword = async (
   try {
     const { email } = req.body;
 
-    // Find user by email
     const user = await User.findOne({ email });
 
-    // Don't reveal if user exists or not for security
+    // Security feature is to: don't reveal if user exists
     if (!user) {
       res.status(200).json({
         success: true,
@@ -508,25 +434,20 @@ export const forgotPassword = async (
       return;
     }
 
-    // Generate reset token
     const resetToken = generateRandomToken();
 
-    // Set token and expiration (1 hour)
     user.passwordResetToken = resetToken;
     user.passwordResetExpires = new Date(Date.now() + 60 * 60 * 1000);
 
-    // Skip validation when saving during password reset request
     await user.save({ validateBeforeSave: false });
 
-    // In a real application, send reset email here with the token
-    // For development, just return the token
     logger.info(`Password reset requested for: ${user.email}`);
 
     res.status(200).json({
       success: true,
       message:
         "If your email is registered, a password reset link will be sent",
-      // Include token for development only, remove in production
+      // Development only used
       resetToken:
         process.env.NODE_ENV === "development" ? resetToken : undefined,
     });
@@ -539,10 +460,6 @@ export const forgotPassword = async (
   }
 };
 
-/**
- * Reset password using token
- * @route POST /api/auth/reset-password
- */
 export const resetPassword = async (
   req: Request,
   res: Response
@@ -550,7 +467,6 @@ export const resetPassword = async (
   try {
     const { token, password, confirmPassword } = req.body;
 
-    // Check if passwords match
     if (password !== confirmPassword) {
       res.status(400).json({
         success: false,
@@ -559,7 +475,6 @@ export const resetPassword = async (
       return;
     }
 
-    // Check password strength
     const passwordCheck = validatePasswordStrength(password);
     if (!passwordCheck.isValid) {
       res.status(400).json({
@@ -569,7 +484,6 @@ export const resetPassword = async (
       return;
     }
 
-    // Find user by reset token and check if token is expired
     const user = await User.findOne({
       passwordResetToken: token,
       passwordResetExpires: { $gt: new Date() },
@@ -583,14 +497,12 @@ export const resetPassword = async (
       return;
     }
 
-    // Update password and clear reset token
     user.password = password;
     user.passwordResetToken = undefined;
     user.passwordResetExpires = undefined;
     user.failedLoginAttempts = 0;
     user.lockUntil = undefined;
 
-    // Skip validation when saving during password reset
     await user.save({ validateBeforeSave: false });
 
     logger.info(`Password reset successful for: ${user.email}`);
@@ -608,10 +520,6 @@ export const resetPassword = async (
   }
 };
 
-/**
- * Verify email using token
- * @route GET /api/auth/verify-email/:token
- */
 export const verifyEmail = async (
   req: Request,
   res: Response
@@ -619,7 +527,6 @@ export const verifyEmail = async (
   try {
     const { token } = req.params;
 
-    // Find user by verification token
     const user = await User.findOne({ emailVerificationToken: token });
 
     if (!user) {
@@ -630,11 +537,9 @@ export const verifyEmail = async (
       return;
     }
 
-    // Mark email as verified and clear token
     user.emailVerified = true;
     user.emailVerificationToken = undefined;
 
-    // Skip validation when saving during email verification
     await user.save({ validateBeforeSave: false });
 
     logger.info(`Email verified for: ${user.email}`);

@@ -1,21 +1,13 @@
 import * as jwt from "jsonwebtoken";
 
-/**
- * Token payload interface for TypeScript
- */
 export interface TokenPayload {
-  id?: string; // Make id optional
-  userId?: string; // Add userId field
+  id?: string;
+  userId?: string;
   email: string;
   role: "user" | "admin" | "doctor" | "therapist";
-  [key: string]: any; // Allow for additional properties
+  [key: string]: any;
 }
 
-/**
- * Generate a random token string
- * @param length - Length of the token
- * @returns Random string token
- */
 export const generateRandomToken = (length = 32): string => {
   const characters =
     "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
@@ -26,47 +18,19 @@ export const generateRandomToken = (length = 32): string => {
   return token;
 };
 
-/**
- * Generate JWT token
- * @param payload - Data to include in token
- * @param expiresIn - Token expiration time
- * @returns Generated JWT token
- */
 export const generateToken = (
   payload: TokenPayload,
-  expiresIn: string | number = "1d"
+  expiresIn: string = "1d"
 ): string => {
   const secret = process.env.JWT_SECRET || "your_jwt_secret";
-
-  // Use any to bypass type checking temporarily
-  const options: any = {
-    expiresIn: expiresIn,
-  };
-
-  return jwt.sign(payload, secret, options);
+  return jwt.sign(payload, secret, { expiresIn: expiresIn as any });
 };
 
-/**
- * Generate refresh token with longer expiry
- * @param payload - Data to include in token
- * @returns Generated refresh token
- */
 export const generateRefreshToken = (payload: TokenPayload): string => {
   const secret = process.env.JWT_REFRESH_SECRET || "your_refresh_secret";
-
-  // Use any to bypass type checking temporarily
-  const options: any = {
-    expiresIn: "7d",
-  };
-
-  return jwt.sign(payload, secret, options);
+  return jwt.sign(payload, secret, { expiresIn: "7d" as any });
 };
 
-/**
- * Verify JWT token
- * @param token - JWT token to verify
- * @returns Decoded token payload or null if invalid
- */
 export const verifyToken = (token: string): TokenPayload | null => {
   try {
     const secret = process.env.JWT_SECRET || "your_jwt_secret";
@@ -81,11 +45,6 @@ export const verifyToken = (token: string): TokenPayload | null => {
   }
 };
 
-/**
- * Verify refresh token
- * @param token - Refresh token to verify
- * @returns Decoded token payload or null if invalid
- */
 export const verifyRefreshToken = (token: string): TokenPayload | null => {
   try {
     const secret = process.env.JWT_REFRESH_SECRET || "your_refresh_secret";
@@ -98,12 +57,4 @@ export const verifyRefreshToken = (token: string): TokenPayload | null => {
     }
     return null;
   }
-};
-
-export default {
-  generateToken,
-  generateRefreshToken,
-  verifyToken,
-  verifyRefreshToken,
-  generateRandomToken, // Added to export
 };

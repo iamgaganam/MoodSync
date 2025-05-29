@@ -1,4 +1,3 @@
-// src/controllers/activity.controller.ts
 import { Request, Response } from "express";
 import Activity, { IActivity } from "../models/activity.model";
 import mongoose from "mongoose";
@@ -37,7 +36,7 @@ export const getActivities = async (req: Request, res: Response) => {
       return res.status(401).json({ message: "Not authenticated" });
     }
 
-    // Handle query parameters for filtering
+    // Date filtering from query parameters
     const startDate = req.query.startDate
       ? new Date(req.query.startDate as string)
       : undefined;
@@ -47,7 +46,6 @@ export const getActivities = async (req: Request, res: Response) => {
 
     let query: any = { userId };
 
-    // Add date filtering if provided
     if (startDate && endDate) {
       query.date = { $gte: startDate, $lte: endDate };
     } else if (startDate) {
@@ -57,7 +55,6 @@ export const getActivities = async (req: Request, res: Response) => {
     }
 
     const activities = await Activity.find(query).sort({ date: 1, time: 1 });
-
     res.status(200).json(activities);
   } catch (error) {
     res.status(500).json({
@@ -79,7 +76,7 @@ export const updateActivity = async (req: Request, res: Response) => {
       return res.status(400).json({ message: "Invalid activity ID" });
     }
 
-    // First check if activity belongs to user
+    // Verify ownership before update
     const activity = await Activity.findOne({ _id: activityId, userId });
     if (!activity) {
       return res
@@ -114,7 +111,7 @@ export const deleteActivity = async (req: Request, res: Response) => {
       return res.status(400).json({ message: "Invalid activity ID" });
     }
 
-    // First check if activity belongs to user
+    // Verify ownership before deletion
     const activity = await Activity.findOne({ _id: activityId, userId });
     if (!activity) {
       return res

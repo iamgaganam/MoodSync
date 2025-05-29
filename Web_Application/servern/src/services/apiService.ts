@@ -1,16 +1,12 @@
-// src/services/apiService.ts
-import axios from "axios";
+import axios, { AxiosRequestConfig, AxiosResponse, AxiosError } from "axios";
 
-// API base URL - can be overridden by environment variable
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
-// Create a function to get the auth token
-const getAuthToken = () => {
+const getAuthToken = (): string | null => {
   return localStorage.getItem("token");
 };
 
-// Create a function to refresh the token
-const refreshAccessToken = async () => {
+const refreshAccessToken = async (): Promise<string | null> => {
   const refreshToken = localStorage.getItem("refreshToken");
 
   if (!refreshToken) {
@@ -34,7 +30,6 @@ const refreshAccessToken = async () => {
   }
 };
 
-// Create axios instance with base URL
 const api = axios.create({
   baseURL: API_URL,
   headers: {
@@ -42,43 +37,41 @@ const api = axios.create({
   },
 });
 
-// Add request interceptor to add auth token
+// Request interceptor with typing
 api.interceptors.request.use(
-  (config) => {
+  (config: AxiosRequestConfig) => {
     const token = getAuthToken();
-    if (token) {
+    if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
   },
-  (error) => Promise.reject(error)
+  (error: AxiosError) => Promise.reject(error)
 );
 
-// Add response interceptor to handle token refresh
+// Response interceptor with typing
 api.interceptors.response.use(
-  (response) => response,
-  async (error) => {
-    const originalRequest = error.config;
+  (response: AxiosResponse) => response,
+  async (error: AxiosError) => {
+    const originalRequest = error.config as AxiosRequestConfig & {
+      _retry?: boolean;
+    };
 
-    // If error is 401 (Unauthorized) and we haven't already tried to refresh
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
 
-      // Try to refresh the token
       const newToken = await refreshAccessToken();
 
-      if (newToken) {
-        // Update the header and retry the request
+      if (newToken && originalRequest.headers) {
         originalRequest.headers.Authorization = `Bearer ${newToken}`;
         return api(originalRequest);
       }
 
-      // If refresh failed, clear storage and redirect to login
+      // Clear storage on refresh failure
       localStorage.removeItem("token");
       localStorage.removeItem("refreshToken");
       localStorage.removeItem("moodSync_user");
 
-      // Redirect can be handled by the component that receives the error
       return Promise.reject(error);
     }
 
@@ -86,10 +79,22 @@ api.interceptors.response.use(
   }
 );
 
-// User API methods
+interface AuthCredentials {
+  email: string;
+  password: string;
+}
+
+interface UserData {
+  name?: string;
+  email?: string;
+  mobileNumber?: string;
+  emergencyContact?: string;
+  [key: string]: any;
+}
+
 export const userAPI = {
   getProfile: () => api.get("/users/profile"),
-  updateProfile: (data: any) => api.put("/users/profile", data),
+  updateProfile: (data: UserData) => api.put("/users/profile", data),
   uploadProfileImage: (formData: FormData) =>
     api.post("/users/profile/image", formData, {
       headers: {
@@ -98,11 +103,9 @@ export const userAPI = {
     }),
 };
 
-// Auth API methods
 export const authAPI = {
-  login: (credentials: { email: string; password: string }) =>
-    api.post("/auth/login", credentials),
-  register: (userData: any) => api.post("/auth/register", userData),
+  login: (credentials: AuthCredentials) => api.post("/auth/login", credentials),
+  register: (userData: UserData) => api.post("/auth/register", userData),
   refreshToken: (refreshToken: string) =>
     api.post("/auth/refresh-token", { refreshToken }),
   forgotPassword: (email: string) =>

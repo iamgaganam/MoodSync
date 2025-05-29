@@ -1,59 +1,68 @@
-// src/server.ts
 import express, { Request, Response, NextFunction } from "express";
-import http from "http";
 import cors from "cors";
 import helmet from "helmet";
 import morgan from "morgan";
-import mongoose from "mongoose";
-import dotenv from "dotenv";
 import path from "path";
+import { config } from "./config/env.config";
+import { connectDB } from "./config/database";
 import authRoutes from "./routes/auth.routes";
 import userRoutes from "./routes/user.routes";
+import winston from "winston";
 
-// Load environment variables
-dotenv.config();
-
-// Create Express app
 const app = express();
-const PORT = process.env.PORT || 5000;
 
-// Create HTTP server
-const server = http.createServer(app);
+const logger = winston.createLogger({
+  level: config.logLevel,
+  format: winston.format.combine(
+    winston.format.timestamp(),
+    winston.format.json()
+  ),
+  transports: [
+    new winston.transports.Console({
+      format: winston.format.combine(
+        winston.format.colorize(),
+        winston.format.simple()
+      ),
+    }),
+  ],
+});
 
-// Middleware
+// Security and CORS middleware
 app.use(helmet());
 app.use(
   cors({
-    origin: process.env.CLIENT_URL || "http://localhost:5173",
+    origin: config.clientUrl,
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
     allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true,
   })
 );
+
+// Request parsing with security limits
 app.use(express.json({ limit: "10kb" }));
 app.use(express.urlencoded({ extended: true, limit: "10kb" }));
-app.use(
-  process.env.NODE_ENV === "development" ? morgan("dev") : morgan("combined")
-);
 
-// Serve static files for profile images
+// Environment-based logging
+app.use(config.nodeEnv === "development" ? morgan("dev") : morgan("combined"));
+
+// Static file serving
 app.use("/uploads", express.static(path.join(__dirname, "../../uploads")));
 
-// Health check route
+// Health check endpoint
 app.get("/health", (req: Request, res: Response) => {
   res.status(200).json({
     status: "success",
     message: "Server is running",
-    environment: process.env.NODE_ENV || "development",
+    environment: config.nodeEnv,
     timestamp: new Date().toISOString(),
   });
 });
 
-// API Routes
+// API routes
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 
-// 404 handler
+// 404 handler for undefined routes
 app.use((req: Request, res: Response) => {
   res.status(404).json({
     success: false,
@@ -68,41 +77,62 @@ interface ErrorWithStatus extends Error {
 
 app.use(
   (err: ErrorWithStatus, req: Request, res: Response, next: NextFunction) => {
-    console.error("Error:", err);
+    logger.error("Application error:", err);
 
     res.status(err.status || 500).json({
       success: false,
       message:
-        process.env.NODE_ENV === "development"
+        config.nodeEnv === "development"
           ? err.message
           : "Internal server error",
-      stack: process.env.NODE_ENV === "development" ? err.stack : undefined,
+      stack: config.nodeEnv === "development" ? err.stack : undefined,
     });
   }
 );
 
-// Connect to MongoDB and start server
 async function startServer(): Promise<void> {
   try {
-    const mongoURI =
-      process.env.MONGODB_URI || "mongodb://localhost:27017/moodsync";
-    await mongoose.connect(mongoURI);
-    console.log("MongoDB connected successfully");
+    await connectDB();
 
-    server.listen(PORT, () => {
-      console.log(
-        `Server running in ${
-          process.env.NODE_ENV || "development"
-        } mode on port ${PORT}`
+    const server = app.listen(config.port, () => {
+      logger.info(
+        `Server running in ${config.nodeEnv} mode on port ${config.port}`
       );
-      console.log(`API access at http://localhost:${PORT}/api`);
-      console.log(`WebSocket server running on http://localhost:${PORT}`);
+      logger.info(`API available at http://localhost:${config.port}/api`);
+
+      if (config.nodeEnv === "development") {
+        logger.info(`Health check: http://localhost:${config.port}/health`);
+      }
     });
+
+    // Shutdown handling
+    const gracefulShutdown = (signal: string) => {
+      logger.info(`${signal} received, shutting down gracefully...`);
+
+      server.close(() => {
+        logger.info("Server closed successfully");
+        process.exit(0);
+      });
+    };
+
+    process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
+    process.on("SIGINT", () => gracefulShutdown("SIGINT"));
   } catch (error) {
-    console.error("Failed to start server:", error);
+    logger.error("Failed to start server:", error);
     process.exit(1);
   }
 }
+
+// Global error handling
+process.on("unhandledRejection", (err: Error) => {
+  logger.error("Unhandled Promise Rejection:", err);
+  process.exit(1);
+});
+
+process.on("uncaughtException", (err: Error) => {
+  logger.error("Uncaught Exception:", err);
+  process.exit(1);
+});
 
 startServer();
 

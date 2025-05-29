@@ -1,43 +1,40 @@
+# docker-compose.prod.yml
 version: "3.8"
 
 services:
-  # Frontend application
-  client:
-    build:
-      context: ./client
-      dockerfile: Dockerfile
-    ports:
-      - "3000:80"
-    depends_on:
-      - server
-    volumes:
-      - ./client:/app
-      - /app/node_modules
+  # Production MongoDB with security
+  mongodb:
+    command: ["mongod", "--auth", "--bind_ip_all"]
     environment:
-      NODE_ENV: development
-      REACT_APP_API_URL: http://localhost:8000
-    networks:
-      - app-network
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD}
+    ports: [] # Remove external port exposure in production
 
-  # Backend API service
+  # Production server configuration
   server:
     build:
-      context: ./server
-      dockerfile: Dockerfile
-    ports:
-      - "8000:8000"
-    volumes:
-      - ./server:/app
-      - ./server/data:/app/data
+      target: production
     environment:
-      MONGODB_URI: ${MONGODB_URI}
-      JWT_SECRET: ${JWT_SECRET}
-      ALGORITHM: ${ALGORITHM}
-      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES}
-    networks:
-      - app-network
+      NODE_ENV: production
+      MONGODB_URI: ${MONGODB_URI_PROD}
+    volumes:
+      - uploads_data:/app/uploads
+    # Remove development volumes
 
-# Network configuration
-networks:
-  app-network:
-    driver: bridge
+  # Production client with nginx
+  client:
+    build:
+      target: production
+    environment:
+      NODE_ENV: production
+    volumes: []
+    # Remove development volumes
+
+# Production-specific volumes
+volumes:
+  uploads_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /var/app/uploads

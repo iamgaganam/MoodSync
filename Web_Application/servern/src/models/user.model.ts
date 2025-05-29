@@ -2,7 +2,6 @@ import mongoose, { Document, Schema, Model } from "mongoose";
 import bcrypt from "bcrypt";
 import { CallbackError } from "mongoose";
 
-// Define User interface to enforce TypeScript types
 export interface IUser extends Document {
   name: string;
   email: string;
@@ -26,13 +25,11 @@ export interface IUser extends Document {
   lockUntil?: Date;
   lastLogin?: Date;
   refreshToken?: string;
-  // Add timestamp fields from Mongoose
   createdAt: Date;
   updatedAt: Date;
   comparePassword(candidatePassword: string): Promise<boolean>;
 }
 
-// User schema
 const userSchema = new Schema<IUser>(
   {
     name: {
@@ -51,7 +48,7 @@ const userSchema = new Schema<IUser>(
     password: {
       type: String,
       required: [true, "Password is required"],
-      select: false, // Don't return password by default
+      select: false,
     },
     mobileNumber: {
       type: String,
@@ -63,14 +60,14 @@ const userSchema = new Schema<IUser>(
     },
     profileImage: {
       type: String,
-      default: "/api/placeholder/150/150", // Default image path
+      default: "/api/placeholder/150/150",
     },
     role: {
       type: String,
       enum: ["user", "admin", "doctor", "therapist"],
       default: "user",
     },
-    // Doctor specific fields
+    // Professional role fields
     specialization: {
       type: String,
       required: function (this: IUser) {
@@ -83,7 +80,7 @@ const userSchema = new Schema<IUser>(
         return this.role === "doctor";
       },
     },
-    // User specific fields
+    // Personal information
     age: {
       type: Number,
     },
@@ -94,7 +91,7 @@ const userSchema = new Schema<IUser>(
     diagnosis: {
       type: String,
     },
-    // Communication fields
+    // Activity tracking
     status: {
       type: String,
       enum: ["active", "inactive"],
@@ -104,7 +101,7 @@ const userSchema = new Schema<IUser>(
       type: Date,
       default: Date.now,
     },
-    // Auth fields
+    // Authentication and security
     emailVerified: {
       type: Boolean,
       default: false,
@@ -118,17 +115,17 @@ const userSchema = new Schema<IUser>(
     },
     lockUntil: Date,
     lastLogin: Date,
-    refreshToken: String, // Added refresh token field
+    refreshToken: String,
   },
   {
-    timestamps: true, // Adds createdAt and updatedAt
+    timestamps: true,
   }
 );
 
-// Hash password before saving
+// Password hashing middleware
 userSchema.pre("save", async function (next) {
-  // Only hash the password if it's modified (or new)
   if (!this.isModified("password")) return next();
+
   try {
     const salt = await bcrypt.genSalt(10);
     this.password = await bcrypt.hash(this.password, salt);
@@ -138,7 +135,7 @@ userSchema.pre("save", async function (next) {
   }
 });
 
-// Method to compare password
+// Password comparison method
 userSchema.methods.comparePassword = async function (
   candidatePassword: string
 ): Promise<boolean> {

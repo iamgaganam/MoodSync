@@ -1,7 +1,11 @@
 import Joi from "joi";
 import { Request, Response, NextFunction } from "express";
 
-// Registration validation schema
+// Password pattern in validation
+const passwordPattern = new RegExp(
+  '^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[!@#$%^&*(),.?":{}|<>])[A-Za-z\\d!@#$%^&*(),.?":{}|<>]{8,}$'
+);
+
 export const registerSchema = Joi.object({
   name: Joi.string().min(2).max(100).required().messages({
     "string.empty": "Name is required",
@@ -22,21 +26,13 @@ export const registerSchema = Joi.object({
     "string.empty": "Emergency contact is required",
     "any.required": "Emergency contact is required",
   }),
-  password: Joi.string()
-    .min(8)
-    .required()
-    .pattern(
-      new RegExp(
-        '^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[!@#$%^&*(),.?":{}|<>])[A-Za-z\\d!@#$%^&*(),.?":{}|<>]{8,}$'
-      )
-    )
-    .messages({
-      "string.empty": "Password is required",
-      "string.min": "Password must be at least {#limit} characters long",
-      "string.pattern.base":
-        "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character",
-      "any.required": "Password is required",
-    }),
+  password: Joi.string().min(8).required().pattern(passwordPattern).messages({
+    "string.empty": "Password is required",
+    "string.min": "Password must be at least {#limit} characters long",
+    "string.pattern.base":
+      "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character",
+    "any.required": "Password is required",
+  }),
   confirmPassword: Joi.string().valid(Joi.ref("password")).required().messages({
     "string.empty": "Confirm password is required",
     "any.only": "Passwords do not match",
@@ -47,7 +43,6 @@ export const registerSchema = Joi.object({
   }),
 });
 
-// Login validation schema
 export const loginSchema = Joi.object({
   email: Joi.string().email().required().messages({
     "string.empty": "Email is required",
@@ -61,7 +56,6 @@ export const loginSchema = Joi.object({
   rememberMe: Joi.boolean().default(false),
 });
 
-// Password reset request validation schema
 export const forgotPasswordSchema = Joi.object({
   email: Joi.string().email().required().messages({
     "string.empty": "Email is required",
@@ -70,27 +64,18 @@ export const forgotPasswordSchema = Joi.object({
   }),
 });
 
-// Password reset validation schema
 export const resetPasswordSchema = Joi.object({
   token: Joi.string().required().messages({
     "string.empty": "Token is required",
     "any.required": "Token is required",
   }),
-  password: Joi.string()
-    .min(8)
-    .required()
-    .pattern(
-      new RegExp(
-        '^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[!@#$%^&*(),.?":{}|<>])[A-Za-z\\d!@#$%^&*(),.?":{}|<>]{8,}$'
-      )
-    )
-    .messages({
-      "string.empty": "Password is required",
-      "string.min": "Password must be at least {#limit} characters long",
-      "string.pattern.base":
-        "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character",
-      "any.required": "Password is required",
-    }),
+  password: Joi.string().min(8).required().pattern(passwordPattern).messages({
+    "string.empty": "Password is required",
+    "string.min": "Password must be at least {#limit} characters long",
+    "string.pattern.base":
+      "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character",
+    "any.required": "Password is required",
+  }),
   confirmPassword: Joi.string().valid(Joi.ref("password")).required().messages({
     "string.empty": "Confirm password is required",
     "any.only": "Passwords do not match",
@@ -98,7 +83,6 @@ export const resetPasswordSchema = Joi.object({
   }),
 });
 
-// Validation middleware factory
 export const validate = (schema: Joi.ObjectSchema) => {
   return (req: Request, res: Response, next: NextFunction): void => {
     const { error } = schema.validate(req.body, { abortEarly: false });

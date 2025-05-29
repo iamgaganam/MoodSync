@@ -8,19 +8,14 @@ import mongoSanitize from "express-mongo-sanitize";
 import path from "path";
 import { config } from "./config/env.config";
 
-// Import routes
 import authRoutes from "./routes/auth.routes";
 import userRoutes from "./routes/user.routes";
-import moodRoutes from "./routes/mood.routes"; // Added mood routes
 
-// Create Express app
 const app: Express = express();
 
-// Middleware
-// Security headers
+// Security middleware
 app.use(helmet());
 
-// CORS config
 app.use(
   cors({
     origin: config.clientUrl,
@@ -30,40 +25,37 @@ app.use(
   })
 );
 
-// Body parser
+// Request parsing with size limits
 app.use(express.json({ limit: "10kb" }));
 app.use(express.urlencoded({ extended: true, limit: "10kb" }));
 
-// Serve static files
+// Static file serving
 app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
 
-// Request logging
+// Environment-based logging
 if (config.nodeEnv === "development") {
   app.use(morgan("dev"));
 } else {
   app.use(morgan("combined"));
 }
 
-// Rate limiting
+// Rate limiting configuration
 const limiter = rateLimit({
-  windowMs: config.rateLimitWindowMs, // 15 minutes
-  max: config.rateLimitMaxRequests, // 100 requests per windowMs
+  windowMs: config.rateLimitWindowMs,
+  max: config.rateLimitMaxRequests,
   standardHeaders: true,
   legacyHeaders: false,
   message: "Too many requests from this IP, please try again later.",
 });
 app.use("/api", limiter);
 
-// Data sanitization against NoSQL query injection
+// Security enhancements
 app.use(mongoSanitize());
-
-// Compression
 app.use(compression());
 
-// Routes
+// API routes
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
-app.use("/api/mood", moodRoutes); // Added mood routes
 
 // Health check endpoint
 app.get("/health", (req: Request, res: Response) => {
@@ -75,7 +67,7 @@ app.get("/health", (req: Request, res: Response) => {
   });
 });
 
-// 404 handler
+// 404 handler for undefined routes
 app.use("*", (req: Request, res: Response) => {
   res.status(404).json({
     success: false,
@@ -83,7 +75,7 @@ app.use("*", (req: Request, res: Response) => {
   });
 });
 
-// Error handling middleware
+// Global error handler
 app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
   console.error("Error:", err);
 

@@ -1,5 +1,4 @@
-// server/src/routes/auth.routes.ts
-import express from "express";
+import { Router } from "express";
 import {
   register,
   login,
@@ -12,17 +11,17 @@ import {
 } from "../controllers/auth.controller";
 import { authenticate } from "../middleware/auth.middleware";
 
-const router = express.Router();
+const router = Router();
 
-// Public routes
+// Public authentication routes
 router.post("/register", register);
 router.post("/login", login);
 router.post("/forgot-password", forgotPassword);
 router.post("/reset-password", resetPassword);
+router.post("/refresh-token", refreshAccessToken);
 router.get("/verify-email/:token", verifyEmail);
-router.post("/refresh-token", refreshAccessToken); // Add this line
 
-// Protected routes
+// Protected routes requiring authentication
 router.get("/me", authenticate, getCurrentUser);
 router.post("/logout", authenticate, logout);
 

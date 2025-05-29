@@ -1,8 +1,6 @@
-// server/src/config/env.config.ts
 import dotenv from "dotenv";
 import path from "path";
 
-// Load environment variables from .env file
 dotenv.config({ path: path.resolve(__dirname, "../../.env") });
 
 interface Config {
@@ -37,10 +35,9 @@ export const config: Config = {
   logLevel: process.env.LOG_LEVEL || "info",
 };
 
-// Validate critical configuration
+// Production environment validation
 const validateConfig = (): void => {
   if (config.nodeEnv === "production") {
-    // In production, ensure we have proper secrets and configuration
     if (config.jwtSecret === "fallback_jwt_secret_not_secure") {
       console.error("ERROR: JWT_SECRET is not set in production environment!");
       process.exit(1);
@@ -57,6 +54,6 @@ const validateConfig = (): void => {
 
 validateConfig();
 
-// For backward compatibility
+// Legacy exports for backward compatibility
 export const JWT_SECRET = config.jwtSecret;
 export const PORT = config.port;

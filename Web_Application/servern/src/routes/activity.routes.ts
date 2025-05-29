@@ -1,4 +1,3 @@
-// src/routes/activity.routes.ts
 import { Router } from "express";
 import {
   createActivity,
@@ -10,6 +9,7 @@ import { authMiddleware } from "../middleware/auth.middleware";
 
 const router = Router();
 
+// All activity routes require authentication
 router.post("/", authMiddleware, createActivity);
 router.get("/", authMiddleware, getActivities);
 router.put("/:id", authMiddleware, updateActivity);

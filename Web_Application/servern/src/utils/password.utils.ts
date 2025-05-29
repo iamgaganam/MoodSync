@@ -1,11 +1,6 @@
 import bcrypt from "bcrypt";
 import { config } from "../config/env.config";
 
-/**
- * Hash a password with bcrypt
- * @param password Plain text password
- * @returns Hashed password
- */
 export const hashPassword = async (password: string): Promise<string> => {
   try {
     const salt = await bcrypt.genSalt(config.bcryptSaltRounds);
@@ -15,12 +10,6 @@ export const hashPassword = async (password: string): Promise<string> => {
   }
 };
 
-/**
- * Compare a plain text password with a hashed password
- * @param plainPassword Plain text password
- * @param hashedPassword Hashed password
- * @returns Boolean indicating if passwords match
- */
 export const comparePassword = async (
   plainPassword: string,
   hashedPassword: string
@@ -32,15 +21,9 @@ export const comparePassword = async (
   }
 };
 
-/**
- * Check if password meets security requirements
- * @param password Password to validate
- * @returns Object with isValid flag and error message
- */
 export const validatePasswordStrength = (
   password: string
 ): { isValid: boolean; message?: string } => {
-  // Minimum length check
   if (password.length < 8) {
     return {
       isValid: false,
@@ -48,7 +31,6 @@ export const validatePasswordStrength = (
     };
   }
 
-  // Check for at least one uppercase letter
   if (!/[A-Z]/.test(password)) {
     return {
       isValid: false,
@@ -56,7 +38,6 @@ export const validatePasswordStrength = (
     };
   }
 
-  // Check for at least one lowercase letter
   if (!/[a-z]/.test(password)) {
     return {
       isValid: false,
@@ -64,7 +45,6 @@ export const validatePasswordStrength = (
     };
   }
 
-  // Check for at least one number
   if (!/\d/.test(password)) {
     return {
       isValid: false,
@@ -72,7 +52,6 @@ export const validatePasswordStrength = (
     };
   }
 
-  // Check for at least one special character
   if (!/[!@#$%^&*(),.?":{}|<>]/.test(password)) {
     return {
       isValid: false,
@@ -80,6 +59,5 @@ export const validatePasswordStrength = (
     };
   }
 
-  // All checks passed
   return { isValid: true };
 };

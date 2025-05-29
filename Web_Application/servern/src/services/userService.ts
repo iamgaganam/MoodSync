@@ -1,20 +1,37 @@
-// src/services/userService.ts
 import api from "./apiService";
 
-// Get current user profile
-export const getUserProfile = async () => {
-  try {
-    // Use the auth/me endpoint which is working
-    console.log("Fetching user profile from /api/auth/me");
-    const response = await api.get("/auth/me");
+interface UserProfile {
+  name: string;
+  email: string;
+  mobileNumber: string;
+  emergencyContact: string;
+  profileImage: string;
+  role: string;
+  emailVerified: boolean;
+  joinDate: string;
+}
 
-    console.log("Profile API response:", response.data);
+interface UpdateUserData {
+  name?: string;
+  mobileNumber?: string;
+  emergencyContact?: string;
+  [key: string]: any;
+}
+
+interface ApiResponse<T> {
+  success: boolean;
+  data?: T;
+  user?: T;
+  message?: string;
+}
+
+export const getUserProfile = async (): Promise<UserProfile> => {
+  try {
+    const response = await api.get<ApiResponse<any>>("/auth/me");
 
     if (response.data.success) {
-      // Get user data from the auth/me response structure
       const userData = response.data.user;
 
-      // Transform to expected profile structure
       return {
         name: userData.name,
         email: userData.email,
@@ -34,10 +51,14 @@ export const getUserProfile = async () => {
   }
 };
 
-// Update user profile - using API service that handles tokens
-export const updateUserProfile = async (userData: any) => {
+export const updateUserProfile = async (
+  userData: UpdateUserData
+): Promise<any> => {
   try {
-    const response = await api.put("/users/profile", userData);
+    const response = await api.put<ApiResponse<any>>(
+      "/users/profile",
+      userData
+    );
 
     if (response.data.success) {
       return response.data.data || response.data.user;
@@ -47,24 +68,25 @@ export const updateUserProfile = async (userData: any) => {
   } catch (error) {
     console.error("Error updating user profile:", error);
 
-    // Fallback to returning the input data if API fails
-    console.log("Update endpoint failed, returning input data as fallback");
+    // Fallback if the API fail
     return userData;
   }
 };
 
-// Add profile image upload function
-export const uploadProfileImage = async (file: File) => {
+export const uploadProfileImage = async (file: File): Promise<any> => {
   try {
     const formData = new FormData();
     formData.append("profileImage", file);
 
-    // For FormData, we need to override the Content-Type header
-    const response = await api.post("/users/profile/image", formData, {
-      headers: {
-        "Content-Type": "multipart/form-data",
-      },
-    });
+    const response = await api.post<ApiResponse<any>>(
+      "/users/profile/image",
+      formData,
+      {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      }
+    );
 
     if (response.data.success) {
       return response.data.data;
