@@ -1,7 +1,10 @@
 {
+  // Root TypeScript configuration using project references
   "files": [],
+
+  // Project reference configuration for multi-config setup
   "references": [
-    { "path": "./tsconfig.app.json" },
-    { "path": "./tsconfig.node.json" }
+    { "path": "./tsconfig.app.json" }, // Application source code configuration
+    { "path": "./tsconfig.node.json" } // Build tooling configuration
   ]
 }

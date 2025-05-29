@@ -1,38 +1,45 @@
-// src/services/userService.ts
 import axios from "axios";
 
 const API_URL = "http://localhost:5000/api";
 
-// Get token from localStorage
+interface UserProfile {
+  name: string;
+  email: string;
+  mobileNumber: string;
+  emergencyContact: string;
+  profileImage: string;
+  role: string;
+  emailVerified: boolean;
+  joinDate: string;
+}
+
+/**
+ * Retrieves authentication token from localStorage
+ */
 const getAuthToken = (): string | null => {
-  // Check for both "token" and "access_token" to handle any inconsistency
-  const token =
-    localStorage.getItem("token") || localStorage.getItem("access_token");
-  console.log("Token for API request:", token ? "Present" : "Missing");
-  return token;
+  return localStorage.getItem("token") || localStorage.getItem("access_token");
 };
 
-// Create auth header
+/**
+ * Creates authorization header for API requests
+ */
 const getAuthHeader = () => ({
   headers: {
     Authorization: `Bearer ${getAuthToken()}`,
   },
 });
 
-// Get current user profile - use working endpoint
-export const getUserProfile = async () => {
+/**
+ * Fetches current user profile
+ * @returns Promise<UserProfile> User profile data
+ */
+export const getUserProfile = async (): Promise<UserProfile> => {
   try {
-    // Use the auth/me endpoint which is working
-    console.log("Fetching user profile from /api/auth/me");
     const response = await axios.get(`${API_URL}/auth/me`, getAuthHeader());
 
-    console.log("Profile API response:", response.data);
-
     if (response.data.success) {
-      // Get user data from the auth/me response structure
       const userData = response.data.user;
 
-      // Transform to expected profile structure
       return {
         name: userData.name,
         email: userData.email,
@@ -52,10 +59,13 @@ export const getUserProfile = async () => {
   }
 };
 
-// Update user profile - try with real endpoint now
-export const updateUserProfile = async (userData: any) => {
+/**
+ * Updates user profile information
+ * @param userData Updated user data
+ * @returns Promise<any> Updated user data
+ */
+export const updateUserProfile = async (userData: Partial<UserProfile>) => {
   try {
-    // Try to use the real update endpoint
     const response = await axios.put(
       `${API_URL}/users/profile`,
       userData,
@@ -69,14 +79,16 @@ export const updateUserProfile = async (userData: any) => {
     }
   } catch (error) {
     console.error("Error updating user profile:", error);
-
-    // Fallback to returning the input data if API fails
-    console.log("Update endpoint failed, returning input data as fallback");
+    // Fallback data for emergency failure bru.
     return userData;
   }
 };
 
-// Add new function for profile image upload
+/**
+ * Uploads user profile image
+ * @param file Image file to upload
+ * @returns Promise<any> Upload response data
+ */
 export const uploadProfileImage = async (file: File) => {
   try {
     const formData = new FormData();

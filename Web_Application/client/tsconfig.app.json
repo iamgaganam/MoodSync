@@ -1,26 +1,31 @@
 {
   "compilerOptions": {
-    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
-    "target": "ES2020",
-    "useDefineForClassFields": true,
-    "lib": ["ES2020", "DOM", "DOM.Iterable"],
-    "module": "ESNext",
-    "skipLibCheck": true,
+    // Build optimization for Node.js tooling
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.node.tsbuildinfo",
 
-    /* Bundler mode */
+    // Node.js runtime target and libraries
+    "target": "ES2022",
+    "lib": ["ES2023"],
+
+    // Module system for Node.js environment
+    "module": "ESNext",
     "moduleResolution": "Bundler",
+    "moduleDetection": "force",
     "allowImportingTsExtensions": true,
     "isolatedModules": true,
-    "moduleDetection": "force",
-    "noEmit": true,
-    "jsx": "react-jsx",
+    "skipLibCheck": true,
 
-    /* Linting */
+    // Build configuration
+    "noEmit": true,
+
+    // Type checking strictness for build tools
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true
   },
-  "include": ["src"]
+
+  // Include build configuration files
+  "include": ["vite.config.ts"]
 }

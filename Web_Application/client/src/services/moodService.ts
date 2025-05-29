@@ -2,7 +2,6 @@ import axios from "axios";
 
 const API_URL = "/api/mood";
 
-// Interface for mood entry
 export interface MoodEntry {
   _id?: string;
   userId?: string;
@@ -13,7 +12,6 @@ export interface MoodEntry {
   createdAt?: Date | string;
 }
 
-// Interface for mood stats
 export interface MoodStats {
   currentMood: MoodEntry | null;
   streak: number;
@@ -22,8 +20,8 @@ export interface MoodStats {
 }
 
 /**
- * Get mood entries for the current user
- * @param limit Number of entries to fetch (default: 7)
+ * Retrieves mood entries for the current user
+ * @param limit
  */
 export const getMoodEntries = async (limit?: number): Promise<MoodEntry[]> => {
   try {
@@ -37,16 +35,13 @@ export const getMoodEntries = async (limit?: number): Promise<MoodEntry[]> => {
 };
 
 /**
- * Create a new mood entry
+ * Creates a new mood entry
  */
 export const createMoodEntry = async (moodData: {
   mood: string;
   score: number;
   note: string;
-}): Promise<{
-  moodEntry: MoodEntry;
-  recentEntries: MoodEntry[];
-}> => {
+}): Promise<{ moodEntry: MoodEntry; recentEntries: MoodEntry[] }> => {
   try {
     const response = await axios.post(`${API_URL}/entries`, moodData);
     return response.data;
@@ -57,7 +52,7 @@ export const createMoodEntry = async (moodData: {
 };
 
 /**
- * Get mood statistics for the current user
+ * Retrieves mood statistics for the current user
  */
 export const getMoodStats = async (): Promise<MoodStats> => {
   try {
@@ -70,15 +65,11 @@ export const getMoodStats = async (): Promise<MoodStats> => {
 };
 
 /**
- * Update an existing mood entry
+ * Updates an existing mood entry
  */
 export const updateMoodEntry = async (
   id: string,
-  moodData: {
-    mood: string;
-    score: number;
-    note: string;
-  }
+  moodData: { mood: string; score: number; note: string }
 ): Promise<MoodEntry> => {
   try {
     const response = await axios.put(`${API_URL}/entries/${id}`, moodData);
@@ -90,7 +81,7 @@ export const updateMoodEntry = async (
 };
 
 /**
- * Delete a mood entry
+ * Deletes a mood entry
  */
 export const deleteMoodEntry = async (id: string): Promise<void> => {
   try {

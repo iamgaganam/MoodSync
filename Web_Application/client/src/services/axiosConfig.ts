@@ -1,31 +1,30 @@
-// Create or update client/src/services/axiosConfig.ts
 import axios from "axios";
 
-const setupAxiosInterceptors = () => {
-  // Request interceptor
+/**
+ * Sets up global axios interceptors for authentication and error handling
+ */
+const setupAxiosInterceptors = (): void => {
+  // Request interceptor - adds auth token to all requests
   axios.interceptors.request.use(
     (config) => {
-      const token = localStorage.getItem("token");
+      const token =
+        localStorage.getItem("token") || localStorage.getItem("access_token");
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
       }
       return config;
     },
-    (error) => {
-      return Promise.reject(error);
-    }
+    (error) => Promise.reject(error)
   );
 
-  // Response interceptor
+  // Response interceptor - handles authentication errors
   axios.interceptors.response.use(
-    (response) => {
-      return response;
-    },
+    (response) => response,
     (error) => {
-      // Handle 401 errors
-      if (error.response && error.response.status === 401) {
-        // Redirect to login or refresh token
+      if (error.response?.status === 401) {
+        // Clear tokens and redirect to login on unauthorized access
         localStorage.removeItem("token");
+        localStorage.removeItem("access_token");
         window.location.href = "/login";
       }
       return Promise.reject(error);
