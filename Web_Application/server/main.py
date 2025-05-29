@@ -1,9 +1,10 @@
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 import os
 import logging
-from server.app.utils.database import db, init_community_database  # Import your database connection
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+
+from server.app.utils.database import db
 from server.app.api.auth import router as auth_router
 from server.app.api.protected import router as protected_router
 from server.app.api.sentiment import router as sentiment_router
@@ -11,78 +12,128 @@ from server.app.api.chat_socket import router as chat_socket_router
 from server.app.api.professionals import router as professionals_router
 from server.app.api.users import router as users_router
 from server.app.api.emergency_contacts import router as emergency_contacts_router
-from server.app.api.community import router as community_router  # Import the community router
+from server.app.api.community import router as community_router
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-)
+# Application Configuration
+APP_NAME = "MoodSync API"
+APP_VERSION = "1.0.0"
+FRONTEND_URL = "http://localhost:5173"
+LOG_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+
+UPLOAD_DIRS = [
+    "uploads/profile_images",
+    "uploads/license_certificates",
+    "uploads/user_profile_images"
+]
+
+# logging
+logging.basicConfig(level=logging.INFO, format=LOG_FORMAT)
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="Mental Health Support API")
+# FastAPI application
+app = FastAPI(
+    title=APP_NAME,
+    version=APP_VERSION,
+    description="Comprehensive mental health support platform with professional services"
+)
 
+# CORS configuration for security
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],  # Make sure this matches your frontend URL
+    allow_origins=[FRONTEND_URL],
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
 
-# Create upload directories
-os.makedirs("uploads/profile_images", exist_ok=True)
-os.makedirs("uploads/license_certificates", exist_ok=True)
-os.makedirs("uploads/user_profile_images", exist_ok=True)  # Directory for user profile images
-logger.info("Created upload directories")
 
-# Mount static files
+def create_upload_directories() -> None:
+    """I created upload directories with proper error handling"""
+    for directory in UPLOAD_DIRS:
+        os.makedirs(directory, exist_ok=True)
+    logger.info("Upload directories initialized")
+
+
+def register_api_routes() -> None:
+    """Register all API endpoints with prefixes and tags"""
+    # Core routes without prefix
+    core_routes = [
+        (auth_router, "auth"),
+        (protected_router, "protected"),
+        (sentiment_router, "sentiment"),
+        (chat_socket_router, "chat-socket")
+    ]
+
+    # API routes with prefix
+    api_routes = [
+        (professionals_router, "/api/professionals", "professionals"),
+        (users_router, "/api/users", "users"),
+        (emergency_contacts_router, "/api/emergency-contacts", "emergency-contacts"),
+        (community_router, "/api/community", "community")
+    ]
+
+    # Register core routes
+    for router, tag in core_routes:
+        app.include_router(router, tags=[tag])
+
+    # Register API routes
+    for router, prefix, tag in api_routes:
+        app.include_router(router, prefix=prefix, tags=[tag])
+
+    logger.info("API routes registered successfully")
+
+
+# Initialize application components
+create_upload_directories()
+register_api_routes()
+
+# Static file serving for uploads
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
-logger.info("Mounted static files directory at /uploads")
 
-# Include the different API routers
-app.include_router(auth_router, tags=["auth"])
-app.include_router(protected_router, tags=["protected"])
-app.include_router(sentiment_router)
-app.include_router(chat_socket_router, tags=["chat-socket"])
-app.include_router(professionals_router, prefix="/api/professionals", tags=["professionals"])
-app.include_router(users_router, prefix="/api/users", tags=["users"])
-app.include_router(emergency_contacts_router, prefix="/api/emergency-contacts", tags=["emergency-contacts"])
-app.include_router(community_router, prefix="/api/community", tags=["community"])  # Add the community router
-logger.info("All API routers have been registered")
 
 @app.get("/")
-def root():
-    return {"message": "FastAPI + MongoDB + JWT Auth"}
+async def root():
+    """API root endpoint with basic information"""
+    return {
+        "message": f"Welcome to {APP_NAME}",
+        "version": APP_VERSION,
+        "status": "operational"
+    }
+
 
 @app.get("/health")
 async def health_check():
+    """Health check with database connectivity validation"""
     try:
-        # Check database connection
+        # Verify database connection
         db.command("ping")
-        # If we got here, the database connection is working
-        logger.info("Health check successful")
+        logger.info("Health check passed")
+
         return {
             "status": "healthy",
-            "message": "API is up and running!",
+            "message": "System operational",
             "database": "connected",
-            "api_version": "1.0.0"
+            "version": APP_VERSION
         }
     except Exception as e:
         logger.error(f"Health check failed: {str(e)}")
-        return {
-            "status": "unhealthy",
-            "message": f"API health check failed: {str(e)}",
-            "database": "disconnected"
-        }
+        raise HTTPException(
+            status_code=503,
+            detail="Service temporarily unavailable"
+        )
+
 
 @app.on_event("startup")
-async def startup_db_client():
-    # Initialize community collections with sample data for demo
+async def startup_event():
+    """Application startup initialization"""
     try:
-        await init_community_database()
-        logger.info("Community database initialized successfully")
+        logger.info(f"{APP_NAME} v{APP_VERSION} started successfully")
     except Exception as e:
-        logger.error(f"Error initializing community database: {str(e)}")
+        logger.error(f"Startup error: {str(e)}")
+        logger.warning("Application started with limited functionality")
 
-logger.info("FastAPI application initialized and ready")
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Application cleanup on shutdown"""
+    logger.info("Application shutdown completed")

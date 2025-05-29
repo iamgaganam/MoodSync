@@ -3,19 +3,21 @@ from pydantic import BaseModel
 from server.app.models.sentiment_model import predict_sentiment
 from server.app.models.preprocessing import preprocess_text
 
-# Pydantic model for input validation
+router = APIRouter()
+
+
 class StatementRequest(BaseModel):
+    """Input model for sentiment analysis requests"""
     statement: str
 
-# Initialize API router
-router = APIRouter()
 
 @router.post("/predict/")
 async def predict_sentiment_endpoint(request: StatementRequest):
-    # Preprocess the input statement
+    """Analyze sentiment of input text and return confidence scores"""
+    # Preprocess input text
     processed_text = preprocess_text(request.statement)
 
-    # Predict sentiment and confidence scores
+    # Generate sentiment prediction with confidence scores
     sentiment, confidence_scores = predict_sentiment(processed_text)
 
     return {

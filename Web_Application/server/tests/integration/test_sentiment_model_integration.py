@@ -1,38 +1,45 @@
 import pytest
 import os
-import numpy as np
 from server.app.models.sentiment_model import predict_sentiment, model, vectorizer, label_encoder
 
 
 @pytest.fixture(scope="module")
 def model_files_exist():
-    """Check if model files exist before running tests."""
-    data_directory = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'data')
-    
-    model_path = os.path.join(data_directory, "mental_health_model.pkl")
-    vectorizer_path = os.path.join(data_directory, "vectorizer.pkl")
-    label_encoder_path = os.path.join(data_directory, "label_encoder.pkl")
-    
-    # Skip tests if files don't exist
-    if not all([os.path.exists(p) for p in [model_path, vectorizer_path, label_encoder_path]]):
+    """Verify model files exist before running integration tests"""
+    data_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'data')
+
+    required_files = [
+        "mental_health_model.pkl",
+        "vectorizer.pkl",
+        "label_encoder.pkl"
+    ]
+
+    file_paths = [os.path.join(data_dir, filename) for filename in required_files]
+
+    if not all(os.path.exists(path) for path in file_paths):
         pytest.skip("Model files not found. Skipping integration tests.")
 
 
 class TestMentalHealthModelIntegration:
-    """Integration tests for the mental health model using actual model files."""
+    """Integration tests validating mental health model performance with actual model files"""
 
-    def test_model_loading(self, model_files_exist):
-        """Test that the model, vectorizer, and label encoder are properly loaded."""
-        # Verify components are loaded
+    def test_model_components_loaded(self, model_files_exist):
+        """Verify all model components are properly loaded and functional"""
         assert all([model, vectorizer, label_encoder]), "Model components failed to load"
-        
-        # Verify expected methods exist
-        assert hasattr(model, 'predict') and hasattr(model, 'predict_proba'), "Model missing required methods"
-        assert hasattr(vectorizer, 'transform'), "Vectorizer missing transform method"
-        assert hasattr(label_encoder, 'inverse_transform'), "Label encoder missing inverse_transform method"
 
-    def test_mental_health_detection(self, model_files_exist):
-        """Test that the model correctly detects mental health concerns."""
+        # Validate required methods exist
+        required_methods = [
+            (model, ['predict', 'predict_proba']),
+            (vectorizer, ['transform']),
+            (label_encoder, ['inverse_transform'])
+        ]
+
+        for component, methods in required_methods:
+            for method in methods:
+                assert hasattr(component, method), f"Missing {method} in {component.__class__.__name__}"
+
+    def test_mental_health_classification(self, model_files_exist):
+        """Test accurate detection of mental health concerns"""
         test_cases = [
             {"text": "I feel deeply depressed and hopeless today", "expected": ["depression"]},
             {"text": "I can't stop crying and everything feels overwhelming", "expected": ["depression", "suicidal"]},
@@ -43,14 +50,13 @@ class TestMentalHealthModelIntegration:
 
         for case in test_cases:
             sentiment, confidence = predict_sentiment(case["text"])
-            print(f"Text: '{case['text']}' → {sentiment} (confidence: {confidence})")
-            
-            # Check if prediction matches any expected category
-            assert sentiment.lower() in [cat.lower() for cat in case["expected"]], \
-                f"Expected one of {case['expected']} for '{case['text']}', but got '{sentiment}'"
 
-    def test_normal_detection(self, model_files_exist):
-        """Test that the model can detect normal/non-concerning texts."""
+            # Validate prediction matches expected categories
+            assert sentiment.lower() in [cat.lower() for cat in case["expected"]], \
+                f"Expected one of {case['expected']} for '{case['text']}', got '{sentiment}'"
+
+    def test_normal_text_classification(self, model_files_exist):
+        """Test accurate detection of normal/non-concerning content"""
         normal_texts = [
             "I had a regular day today",
             "I'm going to my appointment tomorrow at 2pm",
@@ -59,35 +65,35 @@ class TestMentalHealthModelIntegration:
         ]
 
         for text in normal_texts:
-            sentiment, confidence = predict_sentiment(text)
-            print(f"Text: '{text}' → {sentiment} (confidence: {confidence})")
-            assert sentiment.lower() == "normal", f"Expected 'Normal' for '{text}', but got '{sentiment}'"
+            sentiment, _ = predict_sentiment(text)
+            assert sentiment.lower() == "normal", f"Expected 'Normal' for '{text}', got '{sentiment}'"
 
-    def test_confidence_scores(self, model_files_exist):
-        """Test that confidence scores are properly formatted."""
-        _, confidence = predict_sentiment("Sample text for confidence score testing")
-        
-        assert isinstance(confidence, list), "Confidence scores should be a list"
-        assert all(0 <= score <= 1 for score in confidence), "Confidence scores should be between 0 and 1"
-        assert abs(sum(confidence) - 1.0) < 1e-5, "Confidence scores should sum to approximately 1"
+    def test_confidence_score_validation(self, model_files_exist):
+        """Validate confidence scores are properly formatted and normalized"""
+        _, confidence = predict_sentiment("Sample text for confidence validation")
 
-    def test_edge_cases(self, model_files_exist):
-        """Test behavior with edge cases."""
-        # Test various edge cases
+        assert isinstance(confidence, list), "Confidence scores must be a list"
+        assert all(0 <= score <= 1 for score in confidence), "Confidence scores must be between 0 and 1"
+        assert abs(sum(confidence) - 1.0) < 1e-5, "Confidence scores must sum to 1"
+
+    def test_edge_case_handling(self, model_files_exist):
+        """Test model behavior with edge cases and unusual inputs"""
         edge_cases = {
             "empty": "",
-            "long": "feeling sad " * 1000,
-            "special_chars": "I feel 😢 today! #depression @therapy"
+            "long_repetitive": "feeling sad " * 1000,
+            "special_characters": "I feel 😢 today! #depression @therapy",
+            "numbers_only": "123 456 789",
+            "mixed_case": "I FEEL very SAD today"
         }
-        
+
         for case_name, text in edge_cases.items():
-            sentiment, _ = predict_sentiment(text)
-            assert isinstance(sentiment, str), f"Should return a string sentiment for {case_name} input"
-            print(f"{case_name} prediction: {sentiment}")
+            sentiment, confidence = predict_sentiment(text)
+            assert isinstance(sentiment, str), f"Should return string sentiment for {case_name}"
+            assert isinstance(confidence, list), f"Should return list confidence for {case_name}"
 
 
-# Parametrized test for mental health classification
-MENTAL_HEALTH_EXAMPLES = [
+# Parametrized test for complete classification validation
+CLASSIFICATION_TEST_DATA = [
     ("I'm so depressed", ["depression"]),
     ("I feel worthless", ["depression", "suicidal"]),
     ("I can't stop crying", ["depression", "suicidal", "normal"]),
@@ -97,12 +103,11 @@ MENTAL_HEALTH_EXAMPLES = [
     ("I have a meeting tomorrow", ["normal"]),
 ]
 
-@pytest.mark.parametrize("input_text,acceptable_categories", MENTAL_HEALTH_EXAMPLES)
-def test_mental_health_classification(model_files_exist, input_text, acceptable_categories):
-    """Test mental health classification with flexible category matching."""
+
+@pytest.mark.parametrize("input_text,acceptable_categories", CLASSIFICATION_TEST_DATA)
+def test_comprehensive_classification(model_files_exist, input_text, acceptable_categories):
+    """Parametrized test for mental health classification accuracy"""
     sentiment, confidence = predict_sentiment(input_text)
-    print(f"Text: '{input_text}' → Predicted: '{sentiment}' (acceptable: {acceptable_categories})")
-    
-    # Check if prediction is in acceptable categories
+
     assert sentiment.lower() in [cat.lower() for cat in acceptable_categories], \
-        f"Expected one of {acceptable_categories} for '{input_text}', but got '{sentiment}'"
+        f"Expected one of {acceptable_categories} for '{input_text}', got '{sentiment}'"

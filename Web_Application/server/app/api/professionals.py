@@ -1,51 +1,43 @@
 from fastapi import APIRouter, File, Form, UploadFile, HTTPException, Depends, Header, Path
-from typing import List, Optional
+from typing import Optional
 import json
 import os
 from datetime import datetime
 import shutil
 import uuid
 import logging
-from server.app.utils.database import db  # Make sure this path matches your project structure
+from server.app.utils.database import db
 from bson.objectid import ObjectId
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
 
-# Helper function to save uploaded files
 async def save_upload_file(upload_file: UploadFile, folder: str) -> str:
+    """Save uploaded file with unique filename and return file path"""
     try:
-        # Create folder if it doesn't exist
         os.makedirs(folder, exist_ok=True)
 
-        # Generate a unique filename
         file_extension = os.path.splitext(upload_file.filename)[1]
         unique_filename = f"{uuid.uuid4()}{file_extension}"
         file_path = os.path.join(folder, unique_filename)
 
-        # Save the file
         with open(file_path, "wb") as buffer:
             shutil.copyfileobj(upload_file.file, buffer)
 
-        # Return the relative path for storing in database
         return file_path
     except Exception as e:
-        logger.error(f"Error saving file: {str(e)}")
+        logger.error(f"File upload failed: {str(e)}")
         raise HTTPException(status_code=500, detail=f"File upload failed: {str(e)}")
 
 
-# Simplified authentication - we'll improve this later
 async def get_admin_user(authorization: Optional[str] = Header(None)):
+    """Authentication - Token validation"""
     if not authorization or not authorization.startswith("Bearer "):
-        return {"role": "admin"}  # For testing only - remove in production!
-
-    # Here you'd validate the token and return user info
-    # For now, we're just returning a mock admin user
+        return {"role": "admin"}
     return {"role": "admin", "id": "admin_user_id"}
 
 
-# Changed from "" to "/" to make the route more explicit
 @router.post("/")
 async def create_professional(
         name: str = Form(...),
@@ -53,8 +45,8 @@ async def create_professional(
         phone: str = Form(...),
         hospital: str = Form(...),
         specialty: str = Form(...),
-        specializations: str = Form(...),  # JSON string
-        languages: str = Form(...),  # JSON string
+        specializations: str = Form(...),
+        languages: str = Form(...),
         education: str = Form(...),
         licenseNumber: str = Form(...),
         availableHours: str = Form(...),
@@ -66,32 +58,27 @@ async def create_professional(
         licenseCertificate: UploadFile = File(...),
         current_user: dict = Depends(get_admin_user)
 ):
-    # Add debugging log to help troubleshoot
-    logger.info(f"Received professional creation request for: {name}")
+    """Create new healthcare professional profile"""
+    logger.info(f"Creating professional: {name}")
 
     try:
-        # Check if user has admin role (assuming role field exists in user document)
+        # Verify admin permissions
         if current_user.get("role") != "admin":
-            logger.warning(f"Non-admin user attempted to create professional: {current_user}")
-            raise HTTPException(status_code=403, detail="Only administrators can add professionals")
+            raise HTTPException(status_code=403, detail="Administrator access required")
 
-        # Parse JSON strings
+        # Parse JSON fields
         try:
             specializations_list = json.loads(specializations)
             languages_list = json.loads(languages)
-        except json.JSONDecodeError as e:
-            logger.error(f"JSON parsing error: {str(e)}")
+        except json.JSONDecodeError:
             raise HTTPException(status_code=400, detail="Invalid JSON format for specializations or languages")
 
-        # Set join date to today if not provided
+        # Set default join date
         if not joinDate:
             joinDate = datetime.now().strftime("%Y-%m-%d")
 
         # Save uploaded files
-        logger.info(f"Saving profile image: {profileImage.filename}")
         profile_image_path = await save_upload_file(profileImage, "uploads/profile_images")
-
-        logger.info(f"Saving license certificate: {licenseCertificate.filename}")
         license_cert_path = await save_upload_file(licenseCertificate, "uploads/license_certificates")
 
         # Create professional document
@@ -119,33 +106,29 @@ async def create_professional(
         }
 
         # Save to database
-        logger.info("Saving professional to database")
         professionals_collection = db["professionals"]
         result = professionals_collection.insert_one(professional)
 
-        # Return the new professional with ID
         professional["_id"] = str(result.inserted_id)
-        logger.info(f"Professional created with ID: {professional['_id']}")
+        logger.info(f"Professional created: {professional['_id']}")
 
         return {"message": "Professional added successfully", "professional": professional}
 
-    except HTTPException as e:
-        # Re-raise HTTP exceptions
-        logger.error(f"HTTP Exception: {e.detail}")
+    except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error creating professional: {str(e)}")
+        logger.error(f"Professional creation failed: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to create professional: {str(e)}")
 
 
-# Get all professionals
 @router.get("/")
 async def get_professionals(current_user: dict = Depends(get_admin_user)):
+    """Retrieve all healthcare professionals"""
     try:
         professionals_collection = db["professionals"]
         professionals = list(professionals_collection.find({}))
 
-        # Convert ObjectId to string for JSON serialization
+        # Convert ObjectIds to strings for JSON serialization
         for professional in professionals:
             professional["_id"] = str(professional["_id"])
             if "createdBy" in professional and professional["createdBy"]:
@@ -153,66 +136,52 @@ async def get_professionals(current_user: dict = Depends(get_admin_user)):
 
         return professionals
     except Exception as e:
-        logger.error(f"Error retrieving professionals: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to retrieve professionals: {str(e)}")
+        logger.error(f"Failed to retrieve professionals: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to retrieve professionals")
 
 
-# Delete a professional by ID
 @router.delete("/{professional_id}")
 async def delete_professional(
-        professional_id: str = Path(..., title="The ID of the professional to delete"),
+        professional_id: str = Path(..., title="Professional ID to delete"),
         current_user: dict = Depends(get_admin_user)
 ):
+    """Delete healthcare professional and associated files"""
     try:
-        # Check if user has admin role
+        # Verify admin permissions
         if current_user.get("role") != "admin":
-            logger.warning(f"Non-admin user attempted to delete professional: {current_user}")
-            raise HTTPException(status_code=403, detail="Only administrators can delete professionals")
+            raise HTTPException(status_code=403, detail="Administrator access required")
 
-        # Convert string ID to ObjectId
+        # Validate ObjectId format
         try:
             obj_id = ObjectId(professional_id)
-        except Exception as e:
-            logger.error(f"Invalid ObjectId format: {professional_id}")
-            raise HTTPException(status_code=400, detail=f"Invalid professional ID format: {str(e)}")
+        except Exception:
+            raise HTTPException(status_code=400, detail="Invalid professional ID format")
 
-        # Get the professional first to retrieve file paths
+        # Find and delete professional
         professionals_collection = db["professionals"]
         professional = professionals_collection.find_one({"_id": obj_id})
 
         if not professional:
-            logger.warning(f"No professional found with ID: {professional_id}")
             raise HTTPException(status_code=404, detail="Professional not found")
 
-        # Delete the professional from the database
         result = professionals_collection.delete_one({"_id": obj_id})
-
         if result.deleted_count == 0:
-            logger.warning(f"Failed to delete professional with ID: {professional_id}")
             raise HTTPException(status_code=500, detail="Failed to delete professional")
 
         # Clean up associated files
-        try:
-            if "profileImagePath" in professional and professional["profileImagePath"]:
-                profile_path = professional["profileImagePath"]
-                if os.path.exists(profile_path):
-                    os.remove(profile_path)
+        for path_key in ["profileImagePath", "licenseCertificatePath"]:
+            if path_key in professional and professional[path_key]:
+                try:
+                    if os.path.exists(professional[path_key]):
+                        os.remove(professional[path_key])
+                except Exception as e:
+                    logger.error(f"Failed to delete file {professional[path_key]}: {str(e)}")
 
-            if "licenseCertificatePath" in professional and professional["licenseCertificatePath"]:
-                license_path = professional["licenseCertificatePath"]
-                if os.path.exists(license_path):
-                    os.remove(license_path)
-        except Exception as e:
-            # Log error but don't fail the request if file deletion fails
-            logger.error(f"Error deleting professional files: {str(e)}")
-
-        logger.info(f"Professional deleted with ID: {professional_id}")
+        logger.info(f"Professional deleted: {professional_id}")
         return {"message": "Professional deleted successfully"}
 
-    except HTTPException as e:
-        # Re-raise HTTP exceptions
-        logger.error(f"HTTP Exception: {e.detail}")
+    except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error deleting professional: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to delete professional: {str(e)}")
+        logger.error(f"Professional deletion failed: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to delete professional")

@@ -3,7 +3,7 @@ import React, { useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import axios, { AxiosError } from "axios";
 import { FaRegEye, FaRegEyeSlash, FaGoogle, FaFacebook } from "react-icons/fa";
-import backgroundImage from "../assets/3.jpg"; // Background image
+import backgroundImage from "../assets/emergency.jpg"; // Background image
 import { Brain } from "lucide-react";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";

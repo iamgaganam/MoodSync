@@ -12,8 +12,8 @@ router = APIRouter(
 )
 
 
-# Pydantic models
 class BookingCreate(BaseModel):
+    """Model for creating new booking appointments"""
     doctorId: str
     doctorName: str
     time: str
@@ -24,23 +24,9 @@ class BookingCreate(BaseModel):
     userName: str = "Anonymous User"
     userContact: Optional[str] = None
 
-    class Config:
-        schema_extra = {
-            "example": {
-                "doctorId": "123456789",
-                "doctorName": "Dr. Kumara Perera",
-                "time": "09:00",
-                "date": "2025-05-21",
-                "hospitalName": "Nawaloka Hospital - Colombo",
-                "specialty": "Psychiatrist",
-                "price": 3500,
-                "userName": "Patient Name",
-                "userContact": "0771234567"
-            }
-        }
-
 
 class BookingResponse(BaseModel):
+    """Model for booking response data"""
     id: str
     doctorId: str
     doctorName: str
@@ -56,9 +42,8 @@ class BookingResponse(BaseModel):
     status: str = "confirmed"
 
 
-# Helper function to create a booking reference
 def generate_booking_reference(doctor_id: str, date: str) -> str:
-    """Generate a unique booking reference"""
+    """Generate unique booking reference number"""
     timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
     doctor_prefix = doctor_id[:4] if len(doctor_id) >= 4 else doctor_id
     return f"BK-{doctor_prefix}-{timestamp}"
@@ -66,32 +51,30 @@ def generate_booking_reference(doctor_id: str, date: str) -> str:
 
 @router.post("/", response_model=BookingResponse, status_code=status.HTTP_201_CREATED)
 async def create_booking(booking: BookingCreate = Body(...)):
-    """
-    Create a new booking for a mental health professional.
-    """
+    """Create new appointment booking with conflict checking"""
     db = get_database()
 
-    # Check if the doctor exists
-    try:
-        doctor = await db.professionals.find_one({"_id": ObjectId(booking.doctorId)})
-    except:
-        # If the ID isn't a valid ObjectId, we'll assume it's a mock doctor
-        doctor = None
+    # Validate doctor exists
+    if not booking.doctorId.startswith("mock-"):
+        try:
+            doctor = await db.professionals.find_one({"_id": ObjectId(booking.doctorId)})
+            if not doctor:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Doctor not found"
+                )
+        except Exception:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Doctor not found"
+            )
 
-    # For mock doctors or if doctor checking is disabled, proceed anyway
-    if not doctor and not booking.doctorId.startswith("mock-"):
-        # Only raise an error if it's not a mock doctor
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Doctor not found"
-        )
-
-    # Check if this time slot is already booked for this doctor on this date
+    # Check for booking conflicts
     existing_booking = await db.bookings.find_one({
         "doctorId": booking.doctorId,
         "date": booking.date,
         "time": booking.time,
-        "status": "confirmed"  # Only check against confirmed bookings
+        "status": "confirmed"
     })
 
     if existing_booking:
@@ -100,38 +83,27 @@ async def create_booking(booking: BookingCreate = Body(...)):
             detail="This time slot is already booked. Please select another time."
         )
 
-    # Create booking reference
-    booking_ref = generate_booking_reference(booking.doctorId, booking.date)
-
-    # Prepare booking document
+    # Create booking document
     booking_doc = booking.dict()
-    booking_doc["bookingRef"] = booking_ref
+    booking_doc["bookingRef"] = generate_booking_reference(booking.doctorId, booking.date)
     booking_doc["createdAt"] = datetime.now()
     booking_doc["status"] = "confirmed"
 
-    # Insert booking
+    # Save to database
     result = await db.bookings.insert_one(booking_doc)
-    booking_id = str(result.inserted_id)
-
-    # Convert ObjectId to string for response
-    booking_doc["id"] = booking_id
-    booking_doc["createdAt"] = booking_doc["createdAt"]
-
-    # Optional: Send SMS notification or email (would be implemented here)
+    booking_doc["id"] = str(result.inserted_id)
 
     return booking_doc
 
 
 @router.get("/{booking_id}", response_model=BookingResponse)
 async def get_booking(booking_id: str):
-    """
-    Get a booking by ID
-    """
+    """Retrieve specific booking by ID"""
     db = get_database()
 
     try:
         booking = await db.bookings.find_one({"_id": ObjectId(booking_id)})
-    except:
+    except Exception:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid booking ID format"
@@ -143,7 +115,7 @@ async def get_booking(booking_id: str):
             detail="Booking not found"
         )
 
-    # Convert ObjectId to string
+    # Convert ObjectId for response
     booking["id"] = str(booking["_id"])
     del booking["_id"]
 
@@ -152,9 +124,7 @@ async def get_booking(booking_id: str):
 
 @router.get("/user/{user_name}", response_model=list[BookingResponse])
 async def get_user_bookings(user_name: str):
-    """
-    Get all bookings for a specific user
-    """
+    """Retrieve all bookings for specific user"""
     db = get_database()
 
     cursor = db.bookings.find({"userName": user_name})
@@ -163,7 +133,7 @@ async def get_user_bookings(user_name: str):
     if not bookings:
         return []
 
-    # Convert ObjectIds to strings
+    # Convert ObjectIds for response
     for booking in bookings:
         booking["id"] = str(booking["_id"])
         del booking["_id"]

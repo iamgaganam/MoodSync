@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
-import backgroundImage from "../assets/3.jpg";
+import backgroundImage from "../assets/emergency.jpg";
 import {
   emergencyContactService,
   EmergencyContact,
