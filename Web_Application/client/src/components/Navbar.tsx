@@ -1,8 +1,8 @@
 import { Brain } from "lucide-react";
 import React, { useState, useRef, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { useAuth } from "../context/AuthContext"; // Adjust the path as needed
-import profileImage from "../assets/profile.jpeg"; // Import your profile image
+import { useAuth } from "../context/AuthContext";
+import profileImage from "../assets/profile.jpeg";
 
 // Navigation links for the main menu
 const NAV_LINKS = [

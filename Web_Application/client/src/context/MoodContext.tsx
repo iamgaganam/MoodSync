@@ -1,10 +1,10 @@
-// client/src/context/MoodContext.tsx
 import React, {
   createContext,
   useContext,
   useState,
   useEffect,
   ReactNode,
+  useCallback,
 } from "react";
 import {
   getMoodEntries,
@@ -14,6 +14,13 @@ import {
   MoodStats,
 } from "../services/moodService";
 
+// Error messages constants
+const ERROR_MESSAGES = {
+  FETCH_FAILED: "Failed to fetch mood data. Please try again.",
+  LOG_FAILED: "Failed to log mood. Please try again.",
+  PROVIDER_ERROR: "useMood must be used within a MoodProvider",
+} as const;
+
 interface MoodContextProps {
   moodEntries: MoodEntry[];
   isLoading: boolean;
@@ -21,6 +28,7 @@ interface MoodContextProps {
   stats: MoodStats | null;
   refreshMoodData: () => Promise<void>;
   logMood: (mood: string, score: number, note: string) => Promise<void>;
+  clearError: () => void;
 }
 
 const MoodContext = createContext<MoodContextProps | undefined>(undefined);
@@ -33,12 +41,15 @@ export const MoodProvider: React.FC<{ children: ReactNode }> = ({
   const [error, setError] = useState<string | null>(null);
   const [stats, setStats] = useState<MoodStats | null>(null);
 
-  const refreshMoodData = async () => {
+  const clearError = useCallback(() => {
+    setError(null);
+  }, []);
+
+  const refreshMoodData = useCallback(async (): Promise<void> => {
     try {
       setIsLoading(true);
       setError(null);
 
-      // Fetch mood entries and stats in parallel
       const [entries, moodStats] = await Promise.all([
         getMoodEntries(),
         getMoodStats(),
@@ -47,62 +58,65 @@ export const MoodProvider: React.FC<{ children: ReactNode }> = ({
       setMoodEntries(entries);
       setStats(moodStats);
     } catch (err) {
-      setError("Failed to fetch mood data. Please try again.");
-      console.error("Error in refreshMoodData:", err);
+      const errorMessage =
+        err instanceof Error ? err.message : ERROR_MESSAGES.FETCH_FAILED;
+      setError(errorMessage);
+      console.error("Error refreshing mood data:", err);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
-  const logMood = async (mood: string, score: number, note: string) => {
-    try {
-      setIsLoading(true);
-      setError(null);
+  const logMood = useCallback(
+    async (mood: string, score: number, note: string): Promise<void> => {
+      try {
+        setIsLoading(true);
+        setError(null);
 
-      const { recentEntries } = await createMoodEntry({ mood, score, note });
+        const { recentEntries } = await createMoodEntry({ mood, score, note });
+        setMoodEntries(recentEntries);
 
-      // Update state with new entries and refresh stats
-      setMoodEntries(recentEntries);
-
-      // Get updated stats after logging mood
-      const moodStats = await getMoodStats();
-      setStats(moodStats);
-
-      return Promise.resolve();
-    } catch (err) {
-      setError("Failed to log mood. Please try again.");
-      console.error("Error in logMood:", err);
-      return Promise.reject(err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+        const updatedStats = await getMoodStats();
+        setStats(updatedStats);
+      } catch (err) {
+        const errorMessage =
+          err instanceof Error ? err.message : ERROR_MESSAGES.LOG_FAILED;
+        setError(errorMessage);
+        console.error("Error logging mood:", err);
+        throw err;
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    []
+  );
 
   // Load initial data on mount
   useEffect(() => {
     refreshMoodData();
-  }, []);
+  }, [refreshMoodData]);
+
+  const contextValue: MoodContextProps = {
+    moodEntries,
+    isLoading,
+    error,
+    stats,
+    refreshMoodData,
+    logMood,
+    clearError,
+  };
 
   return (
-    <MoodContext.Provider
-      value={{
-        moodEntries,
-        isLoading,
-        error,
-        stats,
-        refreshMoodData,
-        logMood,
-      }}
-    >
-      {children}
-    </MoodContext.Provider>
+    <MoodContext.Provider value={contextValue}>{children}</MoodContext.Provider>
   );
 };
 
-export const useMood = () => {
+export const useMood = (): MoodContextProps => {
   const context = useContext(MoodContext);
+
   if (context === undefined) {
-    throw new Error("useMood must be used within a MoodProvider");
+    throw new Error(ERROR_MESSAGES.PROVIDER_ERROR);
   }
+
   return context;
 };

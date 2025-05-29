@@ -1,14 +1,14 @@
-// src/pages/_tests_/LoginPage.test.tsx
-
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, test, expect, beforeEach, vi } from "vitest";
 import { BrowserRouter } from "react-router-dom";
 import axios from "axios";
-import Login from "../Login";
+import "@testing-library/jest-dom";
+import LoginPage from "../Login";
 
 // Mock dependencies
 vi.mock("axios");
+const mockedAxios = vi.mocked(axios);
 
 const mockNavigate = vi.fn();
 vi.mock("react-router-dom", async () => {
@@ -16,6 +16,9 @@ vi.mock("react-router-dom", async () => {
   return {
     ...actual,
     useNavigate: () => mockNavigate,
+    useLocation: () => ({
+      state: null,
+    }),
   };
 });
 
@@ -27,15 +30,18 @@ vi.mock("../../context/AuthContext", () => ({
     login: mockLogin,
     logout: vi.fn(),
     checkAuthStatus: vi.fn().mockResolvedValue(true),
+    isInitialized: true,
   }),
 }));
 
 // Mock assets and components
-vi.mock("../assets/3.jpg", () => "mock-background-image.jpg");
-vi.mock("../components/Navbar", () => ({
+vi.mock("../../assets/emergency.jpg", () => ({
+  default: "mock-background-image.jpg",
+}));
+vi.mock("../../components/Navbar", () => ({
   default: () => <div data-testid="navbar">Navbar</div>,
 }));
-vi.mock("../components/Footer", () => ({
+vi.mock("../../components/Footer", () => ({
   default: () => <div data-testid="footer">Footer</div>,
 }));
 
@@ -64,7 +70,7 @@ const setupTest = () => {
   const user = userEvent.setup();
   render(
     <BrowserRouter>
-      <Login />
+      <LoginPage />
     </BrowserRouter>
   );
   return { user };
@@ -76,8 +82,14 @@ const fillLoginForm = async (
   password: string,
   rememberMe = false
 ) => {
-  await user.type(screen.getByLabelText(/Email address/i), email);
-  await user.type(screen.getByLabelText(/Password/i), password);
+  const emailInput = screen.getByLabelText(/Email address/i);
+  const passwordInput = screen.getByLabelText(/^Password$/i);
+
+  await user.clear(emailInput);
+  await user.clear(passwordInput);
+
+  await user.type(emailInput, email);
+  await user.type(passwordInput, password);
 
   if (rememberMe) {
     await user.click(screen.getByLabelText(/Remember me/i));
@@ -85,11 +97,16 @@ const fillLoginForm = async (
 };
 
 const mockSuccessfulLogin = () => {
-  (axios.post as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+  mockedAxios.post.mockResolvedValueOnce({
     data: {
-      access_token: "fake-token",
-      name: "Test User",
-      email: "test@example.com",
+      token: "fake-token",
+      refreshToken: "fake-refresh-token",
+      user: {
+        id: "1",
+        name: "Test User",
+        email: "test@example.com",
+        role: "user",
+      },
     },
   });
 };
@@ -109,7 +126,7 @@ describe("LoginPage Component", () => {
 
     // Verify form elements
     expect(screen.getByLabelText(/Email address/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/Password/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/^Password$/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/Remember me/i)).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: /Sign in$/i })
@@ -128,24 +145,22 @@ describe("LoginPage Component", () => {
     const { user } = setupTest();
 
     await waitFor(() => {
-      expect(screen.getByLabelText(/Password/i)).toBeInTheDocument();
+      expect(screen.getByLabelText(/^Password$/i)).toBeInTheDocument();
     });
 
-    const passwordInput = screen.getByLabelText(/Password/i);
+    const passwordInput = screen.getByLabelText(/^Password$/i);
     expect(passwordInput).toHaveAttribute("type", "password");
 
-    // Find and click the eye icon button
-    const eyeButton = document.querySelector("button.absolute");
-    if (!eyeButton) {
-      throw new Error("Password visibility toggle button not found");
-    }
+    // Find and click the eye icon button using aria-label
+    const eyeButton = screen.getByLabelText(/Show password/i);
 
     // Toggle visibility on
     await user.click(eyeButton);
     expect(passwordInput).toHaveAttribute("type", "text");
 
-    // Toggle visibility off
-    await user.click(eyeButton);
+    // Toggle visibility off (button label should change)
+    const hideButton = screen.getByLabelText(/Hide password/i);
+    await user.click(hideButton);
     expect(passwordInput).toHaveAttribute("type", "password");
   });
 
@@ -183,62 +198,59 @@ describe("LoginPage Component", () => {
       // Test invalid email
       await fillLoginForm(user, "invalid-email", "validpassword123");
       await user.click(submitButton);
-      await new Promise((r) => setTimeout(r, 500)); // Allow validation to complete
+      await waitFor(() => {
+        expect(
+          screen.getByText(/Email address is invalid/i)
+        ).toBeInTheDocument();
+      });
 
       // Verify submission blocked
       expect(mockLogin).not.toHaveBeenCalled();
-
-      // Test valid email
-      await fillLoginForm(user, "valid@example.com", "validpassword123");
-      await user.click(submitButton);
-
-      // Verify API call attempted
-      await waitFor(() => {
-        expect(axios.post).toHaveBeenCalled();
-      });
+      expect(mockedAxios.post).not.toHaveBeenCalled();
     });
 
     test("validates password length", async () => {
       const { user } = setupTest();
 
       await waitFor(() => {
-        expect(screen.getByLabelText(/Password/i)).toBeInTheDocument();
+        expect(screen.getByLabelText(/^Password$/i)).toBeInTheDocument();
       });
 
       const submitButton = screen.getByRole("button", { name: /Sign in$/i });
-      const emailInput = screen.getByLabelText(/Email address/i);
-      const passwordInput = screen.getByLabelText(/Password/i);
 
       // Test short password
-      await user.type(emailInput, "valid@example.com");
-      await user.type(passwordInput, "short");
+      await fillLoginForm(user, "valid@example.com", "short");
       await user.click(submitButton);
+
+      await waitFor(() => {
+        expect(
+          screen.getByText(/Password must be at least 8 characters/i)
+        ).toBeInTheDocument();
+      });
 
       // Verify API wasn't called
       expect(mockLogin).not.toHaveBeenCalled();
-      expect(axios.post).not.toHaveBeenCalled();
+      expect(mockedAxios.post).not.toHaveBeenCalled();
+    });
 
-      // Test valid password
-      await user.clear(passwordInput);
+    test("shows required field errors when submitting empty form", async () => {
+      const { user } = setupTest();
 
-      // Mock a successful response
-      (axios.post as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce(
-        {
-          data: {
-            access_token: "fake-token",
-            name: "Test User",
-            email: "valid@example.com",
-          },
-        }
-      );
+      await waitFor(() => {
+        expect(
+          screen.getByRole("button", { name: /Sign in$/i })
+        ).toBeInTheDocument();
+      });
 
-      await user.type(passwordInput, "validpassword123");
+      const submitButton = screen.getByRole("button", { name: /Sign in$/i });
       await user.click(submitButton);
 
-      // Verify API was called
       await waitFor(() => {
-        expect(axios.post).toHaveBeenCalled();
+        expect(screen.getByText(/Email is required/i)).toBeInTheDocument();
+        expect(screen.getByText(/Password is required/i)).toBeInTheDocument();
       });
+
+      expect(mockedAxios.post).not.toHaveBeenCalled();
     });
   });
 
@@ -256,26 +268,38 @@ describe("LoginPage Component", () => {
 
       // Verify successful login flow
       await waitFor(() => {
-        // Check API call
-        expect(axios.post).toHaveBeenCalledWith("http://127.0.0.1:8000/login", {
-          email: "test@example.com",
-          password: "password123",
-        });
-
-        // Check token storage
-        expect(localStorageMock.setItem).toHaveBeenCalledWith(
-          "access_token",
-          "fake-token"
+        // Check API call with correct endpoint from cleaned component
+        expect(mockedAxios.post).toHaveBeenCalledWith(
+          "http://localhost:5000/api/auth/login",
+          {
+            email: "test@example.com",
+            password: "password123",
+          },
+          expect.objectContaining({
+            timeout: 15000,
+            headers: {
+              "Content-Type": "application/json",
+            },
+          })
         );
 
         // Check auth context update
         expect(mockLogin).toHaveBeenCalledWith(
-          { name: "Test User", email: "test@example.com" },
+          {
+            id: "1",
+            name: "Test User",
+            email: "test@example.com",
+            role: "user",
+          },
+          "fake-token",
+          "fake-refresh-token",
           false // default rememberMe is false
         );
 
         // Check navigation
-        expect(mockNavigate).toHaveBeenCalledWith("/");
+        expect(mockNavigate).toHaveBeenCalledWith("/userprofile", {
+          replace: true,
+        });
       });
     });
 
@@ -287,23 +311,25 @@ describe("LoginPage Component", () => {
       });
 
       // Mock API error
-      (axios.post as unknown as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
-        {
-          response: {
-            data: {
-              detail: "Invalid credentials",
-            },
+      mockedAxios.post.mockRejectedValueOnce({
+        isAxiosError: true,
+        response: {
+          data: {
+            message: "Invalid credentials",
           },
-        }
-      );
+        },
+      });
 
       await fillLoginForm(user, "wrong@example.com", "wrongpassword");
       await user.click(screen.getByRole("button", { name: /Sign in$/i }));
 
       // Verify error handling
       await waitFor(() => {
-        expect(mockNavigate).not.toHaveBeenCalled();
+        expect(screen.getByText(/Invalid credentials/i)).toBeInTheDocument();
       });
+
+      expect(mockNavigate).not.toHaveBeenCalled();
+      expect(mockLogin).not.toHaveBeenCalled();
     });
 
     test("handles failed login with network error", async () => {
@@ -314,17 +340,21 @@ describe("LoginPage Component", () => {
       });
 
       // Mock network error
-      (axios.post as unknown as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
-        {}
-      );
+      mockedAxios.post.mockRejectedValueOnce({
+        isAxiosError: true,
+        code: "ECONNREFUSED",
+      });
 
       await fillLoginForm(user, "test@example.com", "password123");
       await user.click(screen.getByRole("button", { name: /Sign in$/i }));
 
       // Verify error handling
       await waitFor(() => {
-        expect(mockNavigate).not.toHaveBeenCalled();
+        expect(screen.getByText(/Connection error/i)).toBeInTheDocument();
       });
+
+      expect(mockNavigate).not.toHaveBeenCalled();
+      expect(mockLogin).not.toHaveBeenCalled();
     });
 
     test("shows loading state during form submission", async () => {
@@ -335,18 +365,21 @@ describe("LoginPage Component", () => {
       });
 
       // Setup delayed response
-      (
-        axios.post as unknown as ReturnType<typeof vi.fn>
-      ).mockImplementationOnce(
+      mockedAxios.post.mockImplementationOnce(
         () =>
           new Promise((resolve) =>
             setTimeout(
               () =>
                 resolve({
                   data: {
-                    access_token: "fake-token",
-                    name: "Test User",
-                    email: "test@example.com",
+                    token: "fake-token",
+                    refreshToken: "fake-refresh-token",
+                    user: {
+                      id: "1",
+                      name: "Test User",
+                      email: "test@example.com",
+                      role: "user",
+                    },
                   },
                 }),
               100
@@ -357,9 +390,14 @@ describe("LoginPage Component", () => {
       await fillLoginForm(user, "test@example.com", "password123");
       await user.click(screen.getByRole("button", { name: /Sign in$/i }));
 
+      // Check for loading state
+      expect(screen.getByText(/Signing in.../i)).toBeInTheDocument();
+
       // Verify successful completion
       await waitFor(() => {
-        expect(mockNavigate).toHaveBeenCalledWith("/");
+        expect(mockNavigate).toHaveBeenCalledWith("/userprofile", {
+          replace: true,
+        });
       });
     });
 
@@ -377,10 +415,114 @@ describe("LoginPage Component", () => {
       // Verify remember me flag
       await waitFor(() => {
         expect(mockLogin).toHaveBeenCalledWith(
-          { name: "Test User", email: "test@example.com" },
-          true
+          {
+            id: "1",
+            name: "Test User",
+            email: "test@example.com",
+            role: "user",
+          },
+          "fake-token",
+          "fake-refresh-token",
+          true // rememberMe should be true
         );
-        expect(mockNavigate).toHaveBeenCalledWith("/");
+        expect(mockNavigate).toHaveBeenCalledWith("/userprofile", {
+          replace: true,
+        });
+      });
+    });
+
+    test("handles form submission with disabled button during loading", async () => {
+      const { user } = setupTest();
+
+      await waitFor(() => {
+        expect(screen.getByLabelText(/Email address/i)).toBeInTheDocument();
+      });
+
+      // Setup very delayed response
+      mockedAxios.post.mockImplementationOnce(
+        () =>
+          new Promise((resolve) =>
+            setTimeout(
+              () =>
+                resolve({
+                  data: {
+                    token: "fake-token",
+                    refreshToken: "fake-refresh-token",
+                    user: {
+                      id: "1",
+                      name: "Test User",
+                      email: "test@example.com",
+                      role: "user",
+                    },
+                  },
+                }),
+              200
+            )
+          )
+      );
+
+      await fillLoginForm(user, "test@example.com", "password123");
+      const submitButton = screen.getByRole("button", { name: /Sign in$/i });
+
+      await user.click(submitButton);
+
+      // Button should be disabled during loading
+      await waitFor(() => {
+        expect(submitButton).toBeDisabled();
+      });
+
+      // Verify successful completion
+      await waitFor(
+        () => {
+          expect(mockNavigate).toHaveBeenCalledWith("/userprofile", {
+            replace: true,
+          });
+        },
+        { timeout: 3000 }
+      );
+    });
+  });
+
+  describe("Accessibility", () => {
+    test("has proper labels and ARIA attributes", async () => {
+      setupTest();
+
+      await waitFor(() => {
+        expect(screen.getByLabelText(/Email address/i)).toBeInTheDocument();
+      });
+
+      // Check form inputs have proper labels
+      const emailInput = screen.getByLabelText(/Email address/i);
+      const passwordInput = screen.getByLabelText(/^Password$/i);
+      const rememberMeCheckbox = screen.getByLabelText(/Remember me/i);
+
+      expect(emailInput).toHaveAttribute("type", "email");
+      expect(emailInput).toHaveAttribute("autoComplete", "email");
+      expect(passwordInput).toHaveAttribute("type", "password");
+      expect(passwordInput).toHaveAttribute("autoComplete", "current-password");
+      expect(rememberMeCheckbox).toHaveAttribute("type", "checkbox");
+
+      // Check password toggle button has proper aria-label
+      const passwordToggle = screen.getByLabelText(/Show password/i);
+      expect(passwordToggle).toBeInTheDocument();
+    });
+
+    test("shows proper error states with aria-invalid", async () => {
+      const { user } = setupTest();
+
+      await waitFor(() => {
+        expect(screen.getByLabelText(/Email address/i)).toBeInTheDocument();
+      });
+
+      const submitButton = screen.getByRole("button", { name: /Sign in$/i });
+      await user.click(submitButton);
+
+      await waitFor(() => {
+        const emailInput = screen.getByLabelText(/Email address/i);
+        const passwordInput = screen.getByLabelText(/^Password$/i);
+
+        expect(emailInput).toHaveAttribute("aria-invalid", "true");
+        expect(passwordInput).toHaveAttribute("aria-invalid", "true");
       });
     });
   });

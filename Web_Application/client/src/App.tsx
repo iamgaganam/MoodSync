@@ -19,7 +19,7 @@ import DoctorChannelPage from "./pages/ChannelPage";
 
 // Protected Feature Pages
 import EmergencyAlerts from "./features/Emergency";
-import CommunitySupportPages from "./features/Comsup";
+import CommunitySupportPages from "./features/Community";
 
 // Admin/Doctor Dashboards
 import AdminDashboard from "./pages/AdminDashboard";
@@ -27,6 +27,8 @@ import DoctorDashboard from "./components/DoctorDashboard";
 
 // Error Handling
 import NotFound from "./components/Error";
+import AdminLogin from "./pages/AdminLogin";
+import DoctorLogin from "./pages/DoctorLogin";
 
 const App: React.FC = () => {
   return (
@@ -38,6 +40,8 @@ const App: React.FC = () => {
             <Route path="/" element={<Home />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Registration />} />
+            <Route path="/adminlogin" element={<AdminLogin />} />
+            <Route path="/doctorlogin" element={<DoctorLogin />} />
 
             {/* Protected User Routes - Authentication required */}
             <Route

@@ -1,14 +1,34 @@
-// src/pages/LoginPage.tsx
-import React, { useState } from "react";
+import React, { useState, useCallback, useMemo } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import axios, { AxiosError } from "axios";
 import { FaRegEye, FaRegEyeSlash, FaGoogle, FaFacebook } from "react-icons/fa";
-import backgroundImage from "../assets/emergency.jpg"; // Background image
+import backgroundImage from "../assets/emergency.jpg";
 import { Brain } from "lucide-react";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import { useAuth } from "../context/AuthContext";
 
+const API_CONFIG = {
+  BASE_URL: "http://localhost:5000/api",
+  ENDPOINTS: {
+    LOGIN: "/auth/login",
+  },
+} as const;
+
+const VALIDATION_RULES = {
+  EMAIL_REGEX: /\S+@\S+\.\S+/,
+  MIN_PASSWORD_LENGTH: 8,
+} as const;
+
+const ERROR_MESSAGES = {
+  EMAIL_REQUIRED: "Email is required",
+  EMAIL_INVALID: "Email address is invalid",
+  PASSWORD_REQUIRED: "Password is required",
+  PASSWORD_MIN_LENGTH: "Password must be at least 8 characters",
+  LOGIN_FAILED: "Login failed. Please check your credentials.",
+} as const;
+
+// Types
 interface FormData {
   email: string;
   password: string;
@@ -30,14 +50,191 @@ interface ApiErrorResponse {
   errors?: string;
 }
 
+interface LoginResponse {
+  token: string;
+  refreshToken: string;
+  user: {
+    id: string;
+    name: string;
+    email: string;
+    role?: string;
+    mobileNumber?: string;
+    emergencyContact?: string;
+    profileImage?: string;
+  };
+}
+
+// Utility Functions
+const sanitizeInput = (input: string): string => {
+  return input.trim().slice(0, 255);
+};
+
+const validateEmail = (email: string): string | undefined => {
+  if (!email) return ERROR_MESSAGES.EMAIL_REQUIRED;
+  if (!VALIDATION_RULES.EMAIL_REGEX.test(email))
+    return ERROR_MESSAGES.EMAIL_INVALID;
+  return undefined;
+};
+
+const validatePassword = (password: string): string | undefined => {
+  if (!password) return ERROR_MESSAGES.PASSWORD_REQUIRED;
+  if (password.length < VALIDATION_RULES.MIN_PASSWORD_LENGTH) {
+    return ERROR_MESSAGES.PASSWORD_MIN_LENGTH;
+  }
+  return undefined;
+};
+
+const extractErrorMessage = (error: unknown): string => {
+  if (axios.isAxiosError(error)) {
+    const axiosError = error as AxiosError<ApiErrorResponse>;
+    return (
+      axiosError.response?.data?.message ||
+      axiosError.response?.data?.errors ||
+      ERROR_MESSAGES.LOGIN_FAILED
+    );
+  }
+  return ERROR_MESSAGES.LOGIN_FAILED;
+};
+
+// Components
+const LoadingSpinner: React.FC = () => (
+  <svg
+    className="animate-spin -ml-1 mr-2 h-4 w-4 sm:h-5 sm:w-5 text-white"
+    xmlns="http://www.w3.org/2000/svg"
+    fill="none"
+    viewBox="0 0 24 24"
+    aria-hidden="true"
+  >
+    <circle
+      className="opacity-25"
+      cx="12"
+      cy="12"
+      r="10"
+      stroke="currentColor"
+      strokeWidth="4"
+    />
+    <path
+      className="opacity-75"
+      fill="currentColor"
+      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+    />
+  </svg>
+);
+
+const ErrorMessage: React.FC<{ message: string }> = ({ message }) => (
+  <div className="mb-4 bg-red-50 border-l-4 border-red-500 p-3 sm:p-4">
+    <div className="flex">
+      <div className="flex-shrink-0">
+        <svg
+          className="h-5 w-5 text-red-400"
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 20 20"
+          fill="currentColor"
+          aria-hidden="true"
+        >
+          <path
+            fillRule="evenodd"
+            d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+            clipRule="evenodd"
+          />
+        </svg>
+      </div>
+      <div className="ml-3">
+        <p className="text-xs sm:text-sm text-red-700">{message}</p>
+      </div>
+    </div>
+  </div>
+);
+
+const FormInput: React.FC<{
+  id: string;
+  name: string;
+  type: string;
+  label: string;
+  value: string;
+  error?: string;
+  autoComplete?: string;
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  showPasswordToggle?: boolean;
+  onTogglePassword?: () => void;
+}> = ({
+  id,
+  name,
+  type,
+  label,
+  value,
+  error,
+  autoComplete,
+  onChange,
+  showPasswordToggle,
+  onTogglePassword,
+}) => (
+  <div>
+    <label htmlFor={id} className="block text-sm font-medium text-gray-700">
+      {label}
+    </label>
+    <div className="mt-1 relative">
+      <input
+        id={id}
+        name={name}
+        type={type}
+        autoComplete={autoComplete}
+        value={value}
+        onChange={onChange}
+        className={`appearance-none block w-full px-3 py-2 border ${
+          error ? "border-red-300" : "border-gray-300"
+        } rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm ${
+          showPasswordToggle ? "pr-10" : ""
+        }`}
+        aria-invalid={error ? "true" : "false"}
+        aria-describedby={error ? `${id}-error` : undefined}
+      />
+      {showPasswordToggle && onTogglePassword && (
+        <button
+          type="button"
+          className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-500 hover:text-gray-700"
+          onClick={onTogglePassword}
+          aria-label={type === "password" ? "Show password" : "Hide password"}
+        >
+          {type === "password" ? (
+            <FaRegEye className="h-4 w-4 sm:h-5 sm:w-5" />
+          ) : (
+            <FaRegEyeSlash className="h-4 w-4 sm:h-5 sm:w-5" />
+          )}
+        </button>
+      )}
+    </div>
+    {error && (
+      <p id={`${id}-error`} className="mt-1 text-xs sm:text-sm text-red-600">
+        {error}
+      </p>
+    )}
+  </div>
+);
+
+const SocialLoginButton: React.FC<{
+  icon: React.ReactNode;
+  label: string;
+  onClick?: () => void;
+}> = ({ icon, label, onClick }) => (
+  <button
+    type="button"
+    onClick={onClick}
+    className="w-full inline-flex justify-center py-2 px-3 sm:px-4 border border-gray-300 rounded-md shadow-sm bg-white text-xs sm:text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+  >
+    {icon}
+    <span>{label}</span>
+  </button>
+);
+
+// Main Component
 const LoginPage: React.FC = () => {
   const { login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Get the previous location (if any) or default to profile page
   const locationState = location.state as LocationState;
-  const from = locationState?.from || "/userprofile";
+  const redirectPath = locationState?.from || "/userprofile";
 
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState<FormData>({
@@ -48,120 +245,132 @@ const LoginPage: React.FC = () => {
   const [errors, setErrors] = useState<FormErrors>({});
   const [isLoading, setIsLoading] = useState(false);
 
-  const validateForm = (): boolean => {
+  const validateForm = useCallback((): boolean => {
     const newErrors: FormErrors = {};
     let isValid = true;
 
-    if (!formData.email) {
-      newErrors.email = "Email is required";
-      isValid = false;
-    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-      newErrors.email = "Email address is invalid";
+    const emailError = validateEmail(formData.email);
+    if (emailError) {
+      newErrors.email = emailError;
       isValid = false;
     }
 
-    if (!formData.password) {
-      newErrors.password = "Password is required";
-      isValid = false;
-    } else if (formData.password.length < 8) {
-      newErrors.password = "Password must be at least 8 characters";
+    const passwordError = validatePassword(formData.password);
+    if (passwordError) {
+      newErrors.password = passwordError;
       isValid = false;
     }
 
     setErrors(newErrors);
     return isValid;
-  };
+  }, [formData]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value, type, checked } = e.target;
+  const handleInputChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const { name, value, type, checked } = e.target;
 
-    // Handle checkbox for remember me
-    if (type === "checkbox") {
-      if (name === "remember-me") {
-        setRememberMe(checked);
-      }
-    } else {
-      // Handle other form inputs
-      setFormData((prev) => ({
-        ...prev,
-        [name]: value,
-      }));
-
-      if (errors[name as keyof FormErrors]) {
-        setErrors((prev) => ({
-          ...prev,
-          [name]: undefined,
-        }));
-      }
-    }
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!validateForm()) return;
-
-    setIsLoading(true);
-    setErrors({});
-
-    try {
-      // Call the login API
-      const response = await axios.post(
-        "http://localhost:5000/api/auth/login",
-        {
-          email: formData.email,
-          password: formData.password,
+      if (type === "checkbox") {
+        if (name === "remember-me") {
+          setRememberMe(checked);
         }
-      );
+      } else {
+        const sanitizedValue = sanitizeInput(value);
+        setFormData((prev) => ({
+          ...prev,
+          [name]: sanitizedValue,
+        }));
 
-      console.log("Login success:", response.data);
-
-      // Extract data from Node.js backend response
-      const { token, refreshToken, user } = response.data;
-
-      // Call the updated login function that handles both tokens
-      login(
-        {
-          name: user.name,
-          email: user.email,
-          role: user.role,
-          id: user.id,
-          mobileNumber: user.mobileNumber,
-          emergencyContact: user.emergencyContact,
-          profileImage: user.profileImage,
-        },
-        token,
-        refreshToken,
-        rememberMe
-      );
-
-      // Navigate to the page they were trying to access or default
-      navigate(from);
-    } catch (error) {
-      console.error("Authentication error:", error);
-      let errorMessage = "Login failed. Please check your credentials.";
-
-      // Type guard to check if error is an AxiosError
-      if (axios.isAxiosError(error)) {
-        const axiosError = error as AxiosError<ApiErrorResponse>;
-        errorMessage =
-          axiosError.response?.data?.message ||
-          axiosError.response?.data?.errors ||
-          errorMessage;
+        // Clear field-specific errors when user types
+        if (errors[name as keyof FormErrors]) {
+          setErrors((prev) => ({
+            ...prev,
+            [name]: undefined,
+          }));
+        }
       }
+    },
+    [errors]
+  );
 
-      setErrors({ general: errorMessage });
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const handleSubmit = useCallback(
+    async (e: React.FormEvent) => {
+      e.preventDefault();
+
+      if (!validateForm()) return;
+
+      setIsLoading(true);
+      setErrors({});
+
+      try {
+        const response = await axios.post<LoginResponse>(
+          `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.LOGIN}`,
+          {
+            email: formData.email,
+            password: formData.password,
+          },
+          {
+            timeout: 15000,
+            headers: {
+              "Content-Type": "application/json",
+            },
+          }
+        );
+
+        const { token, refreshToken, user } = response.data;
+
+        login(
+          {
+            name: user.name,
+            email: user.email,
+            role: user.role,
+            id: user.id,
+            mobileNumber: user.mobileNumber,
+            emergencyContact: user.emergencyContact,
+            profileImage: user.profileImage,
+          },
+          token,
+          refreshToken,
+          rememberMe
+        );
+
+        navigate(redirectPath, { replace: true });
+      } catch (error) {
+        console.error("Authentication error:", error);
+        const errorMessage = extractErrorMessage(error);
+        setErrors({ general: errorMessage });
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [formData, rememberMe, validateForm, login, navigate, redirectPath]
+  );
+
+  const togglePasswordVisibility = useCallback(() => {
+    setShowPassword((prev) => !prev);
+  }, []);
+
+  const socialLoginButtons = useMemo(
+    () => [
+      {
+        icon: <FaGoogle className="h-4 w-4 sm:h-5 sm:w-5 text-red-500 mr-2" />,
+        label: "Google",
+        onClick: () => console.log("Google login not implemented"),
+      },
+      {
+        icon: (
+          <FaFacebook className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600 mr-2" />
+        ),
+        label: "Facebook",
+        onClick: () => console.log("Facebook login not implemented"),
+      },
+    ],
+    []
+  );
 
   return (
     <>
-      {/* Navbar at the top */}
       <Navbar />
-      {/* Spacer to prevent overlapping with a transparent background */}
-      <div className="h-20 bg-transparent"></div>
+      <div className="h-20 bg-transparent" />
 
       <div
         className="min-h-screen flex flex-col justify-center py-6 px-4 sm:py-12 sm:px-6 lg:px-8 relative"
@@ -172,18 +381,15 @@ const LoginPage: React.FC = () => {
           backgroundRepeat: "no-repeat",
         }}
       >
-        {/* Overlay */}
-        <div className="absolute inset-0 bg-black opacity-50 z-0"></div>
+        <div className="absolute inset-0 bg-black opacity-50 z-0" />
 
         <div className="sm:mx-auto sm:w-full sm:max-w-md z-10 relative">
           <div className="flex justify-center">
-            <Link to="/">
-              <div className="flex items-center space-x-1">
-                <Brain className="h-10 w-10 text-blue-600" />
-                <span className="self-center text-2xl font-semibold whitespace-nowrap dark:text-white">
-                  MoodSync
-                </span>
-              </div>
+            <Link to="/" className="flex items-center space-x-1">
+              <Brain className="h-10 w-10 text-blue-600" />
+              <span className="self-center text-2xl font-semibold whitespace-nowrap text-white">
+                MoodSync
+              </span>
             </Link>
           </div>
           <h2 className="mt-4 sm:mt-6 text-center text-2xl sm:text-3xl font-extrabold text-white">
@@ -196,97 +402,32 @@ const LoginPage: React.FC = () => {
 
         <div className="mt-6 sm:mt-8 mx-auto w-full sm:max-w-md z-10 relative">
           <div className="bg-white bg-opacity-95 py-6 sm:py-8 px-4 shadow-2xl sm:rounded-lg sm:px-10 backdrop-filter backdrop-blur-sm">
-            {errors.general && (
-              <div className="mb-4 bg-red-50 border-l-4 border-red-500 p-3 sm:p-4">
-                <div className="flex">
-                  <div className="flex-shrink-0">
-                    <svg
-                      className="h-5 w-5 text-red-400"
-                      xmlns="http://www.w3.org/2000/svg"
-                      viewBox="0 0 20 20"
-                      fill="currentColor"
-                    >
-                      <path
-                        fillRule="evenodd"
-                        d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-                        clipRule="evenodd"
-                      />
-                    </svg>
-                  </div>
-                  <div className="ml-3">
-                    <p className="text-xs sm:text-sm text-red-700">
-                      {errors.general}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
+            {errors.general && <ErrorMessage message={errors.general} />}
 
             <form className="space-y-4 sm:space-y-6" onSubmit={handleSubmit}>
-              <div>
-                <label
-                  htmlFor="email"
-                  className="block text-sm font-medium text-gray-700"
-                >
-                  Email address
-                </label>
-                <div className="mt-1">
-                  <input
-                    id="email"
-                    name="email"
-                    type="email"
-                    autoComplete="email"
-                    value={formData.email}
-                    onChange={handleChange}
-                    className={`appearance-none block w-full px-3 py-2 border ${
-                      errors.email ? "border-red-300" : "border-gray-300"
-                    } rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm`}
-                  />
-                  {errors.email && (
-                    <p className="mt-1 text-xs sm:text-sm text-red-600">
-                      {errors.email}
-                    </p>
-                  )}
-                </div>
-              </div>
+              <FormInput
+                id="email"
+                name="email"
+                type="email"
+                label="Email address"
+                value={formData.email}
+                error={errors.email}
+                autoComplete="email"
+                onChange={handleInputChange}
+              />
 
-              <div>
-                <label
-                  htmlFor="password"
-                  className="block text-sm font-medium text-gray-700"
-                >
-                  Password
-                </label>
-                <div className="mt-1 relative">
-                  <input
-                    id="password"
-                    name="password"
-                    type={showPassword ? "text" : "password"}
-                    autoComplete="current-password"
-                    value={formData.password}
-                    onChange={handleChange}
-                    className={`appearance-none block w-full px-3 py-2 border ${
-                      errors.password ? "border-red-300" : "border-gray-300"
-                    } rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm pr-10`}
-                  />
-                  <button
-                    type="button"
-                    className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-500 hover:text-gray-700"
-                    onClick={() => setShowPassword(!showPassword)}
-                  >
-                    {showPassword ? (
-                      <FaRegEyeSlash className="h-4 w-4 sm:h-5 sm:w-5" />
-                    ) : (
-                      <FaRegEye className="h-4 w-4 sm:h-5 sm:w-5" />
-                    )}
-                  </button>
-                  {errors.password && (
-                    <p className="mt-1 text-xs sm:text-sm text-red-600">
-                      {errors.password}
-                    </p>
-                  )}
-                </div>
-              </div>
+              <FormInput
+                id="password"
+                name="password"
+                type={showPassword ? "text" : "password"}
+                label="Password"
+                value={formData.password}
+                error={errors.password}
+                autoComplete="current-password"
+                onChange={handleInputChange}
+                showPasswordToggle
+                onTogglePassword={togglePasswordVisibility}
+              />
 
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0">
                 <div className="flex items-center">
@@ -295,7 +436,7 @@ const LoginPage: React.FC = () => {
                     name="remember-me"
                     type="checkbox"
                     checked={rememberMe}
-                    onChange={handleChange}
+                    onChange={handleInputChange}
                     className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                   />
                   <label
@@ -319,36 +460,17 @@ const LoginPage: React.FC = () => {
                 <button
                   type="submit"
                   disabled={isLoading}
-                  className={`w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${
+                  className={`w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors ${
                     isLoading ? "opacity-70 cursor-not-allowed" : ""
                   }`}
                 >
                   {isLoading ? (
                     <>
-                      <svg
-                        className="animate-spin -ml-1 mr-2 h-4 w-4 sm:h-5 sm:w-5 text-white"
-                        xmlns="http://www.w3.org/2000/svg"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                      >
-                        <circle
-                          className="opacity-25"
-                          cx="12"
-                          cy="12"
-                          r="10"
-                          stroke="currentColor"
-                          strokeWidth="4"
-                        ></circle>
-                        <path
-                          className="opacity-75"
-                          fill="currentColor"
-                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                        ></path>
-                      </svg>
+                      <LoadingSpinner />
                       Signing in...
                     </>
                   ) : (
-                    <>Sign in</>
+                    "Sign in"
                   )}
                 </button>
               </div>
@@ -357,7 +479,7 @@ const LoginPage: React.FC = () => {
             <div className="mt-5 sm:mt-6">
               <div className="relative">
                 <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-gray-300"></div>
+                  <div className="w-full border-t border-gray-300" />
                 </div>
                 <div className="relative flex justify-center text-xs sm:text-sm">
                   <span className="px-2 bg-white text-gray-500">
@@ -367,25 +489,14 @@ const LoginPage: React.FC = () => {
               </div>
 
               <div className="mt-4 sm:mt-6 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <button
-                    type="button"
-                    className="w-full inline-flex justify-center py-2 px-3 sm:px-4 border border-gray-300 rounded-md shadow-sm bg-white text-xs sm:text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                  >
-                    <FaGoogle className="h-4 w-4 sm:h-5 sm:w-5 text-red-500 mr-2" />
-                    <span>Google</span>
-                  </button>
-                </div>
-
-                <div>
-                  <button
-                    type="button"
-                    className="w-full inline-flex justify-center py-2 px-3 sm:px-4 border border-gray-300 rounded-md shadow-sm bg-white text-xs sm:text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                  >
-                    <FaFacebook className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600 mr-2" />
-                    <span>Facebook</span>
-                  </button>
-                </div>
+                {socialLoginButtons.map((button, index) => (
+                  <SocialLoginButton
+                    key={index}
+                    icon={button.icon}
+                    label={button.label}
+                    onClick={button.onClick}
+                  />
+                ))}
               </div>
             </div>
 

@@ -1,13 +1,56 @@
-import React, { useState } from "react";
+import React, { useState, useCallback, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import axios from "axios";
+import axios, { AxiosError } from "axios";
 import { FaRegEye, FaRegEyeSlash, FaGoogle, FaFacebook } from "react-icons/fa";
-import backgroundImage from "../assets/emergency.jpg"; // Background image
+import backgroundImage from "../assets/emergency.jpg";
 import { Brain } from "lucide-react";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 
-// Type definitions for form data and errors
+const API_CONFIG = {
+  BASE_URL: "http://localhost:5000/api",
+  ENDPOINTS: {
+    REGISTER: "/auth/register",
+  },
+} as const;
+
+const VALIDATION_RULES = {
+  EMAIL_REGEX: /\S+@\S+\.\S+/,
+  PHONE_REGEX: /^[\d\s\-\+\(\)]{7,15}$/,
+  MIN_PASSWORD_LENGTH: 8,
+  PASSWORD_STRENGTH_REGEX: {
+    UPPERCASE: /[A-Z]/,
+    LOWERCASE: /[a-z]/,
+    NUMBER: /\d/,
+    SPECIAL_CHAR: /[!@#$%^&*(),.?":{}|<>]/,
+  },
+} as const;
+
+const ERROR_MESSAGES = {
+  NAME_REQUIRED: "Name is required",
+  EMAIL_REQUIRED: "Email is required",
+  EMAIL_INVALID: "Email address is invalid",
+  MOBILE_REQUIRED: "Mobile Number is required",
+  MOBILE_INVALID: "Please enter a valid mobile number",
+  EMERGENCY_REQUIRED: "Emergency Contact is required",
+  EMERGENCY_SAME: "Emergency Contact cannot be the same as your Mobile Number",
+  EMERGENCY_INVALID: "Please enter a valid emergency contact number",
+  PASSWORD_REQUIRED: "Password is required",
+  PASSWORD_MIN_LENGTH: "Password must be at least 8 characters",
+  PASSWORD_STRENGTH:
+    "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character",
+  CONFIRM_PASSWORD_REQUIRED: "Please confirm your password",
+  PASSWORDS_NO_MATCH: "Passwords do not match",
+  REGISTRATION_FAILED: "Registration failed. Please try again.",
+} as const;
+
+const SUCCESS_MESSAGES = {
+  REGISTRATION_SUCCESS: "Registration successful! Redirecting to login page...",
+} as const;
+
+const REDIRECT_DELAY = 2000;
+
+// Types
 interface FormData {
   name: string;
   email: string;
@@ -27,8 +70,262 @@ interface FormErrors {
   general?: string;
 }
 
+interface ApiErrorResponse {
+  success: boolean;
+  message: string;
+  errors?: string;
+}
+
+// Utility Functions
+const sanitizeInput = (input: string): string => {
+  return input.trim().slice(0, 255);
+};
+
+const sanitizePhoneNumber = (phone: string): string => {
+  return phone.replace(/[^\d\s\-\+\(\)]/g, "").slice(0, 20);
+};
+
+const validateName = (name: string): string | undefined => {
+  if (!name) return ERROR_MESSAGES.NAME_REQUIRED;
+  if (name.length < 2) return "Name must be at least 2 characters";
+  return undefined;
+};
+
+const validateEmail = (email: string): string | undefined => {
+  if (!email) return ERROR_MESSAGES.EMAIL_REQUIRED;
+  if (!VALIDATION_RULES.EMAIL_REGEX.test(email))
+    return ERROR_MESSAGES.EMAIL_INVALID;
+  return undefined;
+};
+
+const validatePhoneNumber = (phone: string): string | undefined => {
+  if (!phone) return ERROR_MESSAGES.MOBILE_REQUIRED;
+  if (!VALIDATION_RULES.PHONE_REGEX.test(phone.replace(/\s/g, ""))) {
+    return ERROR_MESSAGES.MOBILE_INVALID;
+  }
+  return undefined;
+};
+
+const validateEmergencyContact = (
+  emergencyContact: string,
+  mobileNumber: string
+): string | undefined => {
+  if (!emergencyContact) return ERROR_MESSAGES.EMERGENCY_REQUIRED;
+  if (!VALIDATION_RULES.PHONE_REGEX.test(emergencyContact.replace(/\s/g, ""))) {
+    return ERROR_MESSAGES.EMERGENCY_INVALID;
+  }
+  if (emergencyContact === mobileNumber) return ERROR_MESSAGES.EMERGENCY_SAME;
+  return undefined;
+};
+
+const validatePassword = (password: string): string | undefined => {
+  if (!password) return ERROR_MESSAGES.PASSWORD_REQUIRED;
+  if (password.length < VALIDATION_RULES.MIN_PASSWORD_LENGTH) {
+    return ERROR_MESSAGES.PASSWORD_MIN_LENGTH;
+  }
+
+  const { UPPERCASE, LOWERCASE, NUMBER, SPECIAL_CHAR } =
+    VALIDATION_RULES.PASSWORD_STRENGTH_REGEX;
+  if (
+    !UPPERCASE.test(password) ||
+    !LOWERCASE.test(password) ||
+    !NUMBER.test(password) ||
+    !SPECIAL_CHAR.test(password)
+  ) {
+    return ERROR_MESSAGES.PASSWORD_STRENGTH;
+  }
+  return undefined;
+};
+
+const validateConfirmPassword = (
+  confirmPassword: string,
+  password: string
+): string | undefined => {
+  if (!confirmPassword) return ERROR_MESSAGES.CONFIRM_PASSWORD_REQUIRED;
+  if (password !== confirmPassword) return ERROR_MESSAGES.PASSWORDS_NO_MATCH;
+  return undefined;
+};
+
+const extractErrorMessage = (error: unknown): string => {
+  if (axios.isAxiosError(error)) {
+    const axiosError = error as AxiosError<ApiErrorResponse>;
+    return (
+      axiosError.response?.data?.message ||
+      axiosError.response?.data?.errors ||
+      ERROR_MESSAGES.REGISTRATION_FAILED
+    );
+  }
+  return ERROR_MESSAGES.REGISTRATION_FAILED;
+};
+
+// Components
+const LoadingSpinner: React.FC = () => (
+  <svg
+    className="animate-spin -ml-1 mr-2 h-4 w-4 sm:h-5 sm:w-5 text-white"
+    xmlns="http://www.w3.org/2000/svg"
+    fill="none"
+    viewBox="0 0 24 24"
+    aria-hidden="true"
+  >
+    <circle
+      className="opacity-25"
+      cx="12"
+      cy="12"
+      r="10"
+      stroke="currentColor"
+      strokeWidth="4"
+    />
+    <path
+      className="opacity-75"
+      fill="currentColor"
+      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+    />
+  </svg>
+);
+
+const StatusMessage: React.FC<{
+  message: string;
+  type: "error" | "success";
+}> = ({ message, type }) => {
+  const isError = type === "error";
+
+  return (
+    <div
+      className={`mb-4 ${
+        isError ? "bg-red-50 border-red-500" : "bg-green-50 border-green-500"
+      } border-l-4 p-3 sm:p-4`}
+    >
+      <div className="flex">
+        <div className="flex-shrink-0">
+          <svg
+            className={`h-4 w-4 sm:h-5 sm:w-5 ${
+              isError ? "text-red-400" : "text-green-400"
+            }`}
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 20 20"
+            fill="currentColor"
+            aria-hidden="true"
+          >
+            {isError ? (
+              <path
+                fillRule="evenodd"
+                d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                clipRule="evenodd"
+              />
+            ) : (
+              <path
+                fillRule="evenodd"
+                d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                clipRule="evenodd"
+              />
+            )}
+          </svg>
+        </div>
+        <div className="ml-3">
+          <p
+            className={`text-xs sm:text-sm ${
+              isError ? "text-red-700" : "text-green-700"
+            }`}
+          >
+            {message}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const FormInput: React.FC<{
+  id: string;
+  name: string;
+  type: string;
+  label: string;
+  value: string;
+  error?: string;
+  autoComplete?: string;
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  showPasswordToggle?: boolean;
+  onTogglePassword?: () => void;
+  maxLength?: number;
+}> = ({
+  id,
+  name,
+  type,
+  label,
+  value,
+  error,
+  autoComplete,
+  onChange,
+  showPasswordToggle,
+  onTogglePassword,
+  maxLength,
+}) => (
+  <div>
+    <label
+      htmlFor={id}
+      className="block text-xs sm:text-sm font-medium text-gray-700"
+    >
+      {label}
+    </label>
+    <div className="mt-1 relative">
+      <input
+        id={id}
+        name={name}
+        type={type}
+        autoComplete={autoComplete}
+        value={value}
+        onChange={onChange}
+        maxLength={maxLength}
+        className={`appearance-none block w-full px-3 py-2 border ${
+          error ? "border-red-300" : "border-gray-300"
+        } rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-xs sm:text-sm ${
+          showPasswordToggle ? "pr-10" : ""
+        }`}
+        aria-invalid={error ? "true" : "false"}
+        aria-describedby={error ? `${id}-error` : undefined}
+      />
+      {showPasswordToggle && onTogglePassword && (
+        <button
+          type="button"
+          className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-500 hover:text-gray-700"
+          onClick={onTogglePassword}
+          aria-label={type === "password" ? "Show password" : "Hide password"}
+        >
+          {type === "password" ? (
+            <FaRegEye className="h-4 w-4 sm:h-5 sm:w-5" />
+          ) : (
+            <FaRegEyeSlash className="h-4 w-4 sm:h-5 sm:w-5" />
+          )}
+        </button>
+      )}
+    </div>
+    {error && (
+      <p id={`${id}-error`} className="mt-1 text-xs sm:text-sm text-red-600">
+        {error}
+      </p>
+    )}
+  </div>
+);
+
+const SocialLoginButton: React.FC<{
+  icon: React.ReactNode;
+  label: string;
+  onClick?: () => void;
+}> = ({ icon, label, onClick }) => (
+  <button
+    type="button"
+    onClick={onClick}
+    className="w-full inline-flex justify-center py-2 px-3 sm:px-4 border border-gray-300 rounded-md shadow-sm bg-white text-xs sm:text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+  >
+    {icon}
+    <span>{label}</span>
+  </button>
+);
+
+// Main Component
 const RegisterPage: React.FC = () => {
-  // State variables for form data, validation, loading, and success messages
+  const navigate = useNavigate();
+
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [formData, setFormData] = useState<FormData>({
@@ -43,170 +340,183 @@ const RegisterPage: React.FC = () => {
   const [successMessage, setSuccessMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
-  const navigate = useNavigate(); // React Router navigation
-
-  // Validate form data before submitting
-  const validateForm = (): boolean => {
+  const validateForm = useCallback((): boolean => {
     const newErrors: FormErrors = {};
     let isValid = true;
 
-    // Name validation
-    if (!formData.name) {
-      newErrors.name = "Name is required";
+    const nameError = validateName(formData.name);
+    if (nameError) {
+      newErrors.name = nameError;
       isValid = false;
     }
 
-    // Email validation
-    if (!formData.email) {
-      newErrors.email = "Email is required";
-      isValid = false;
-    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-      newErrors.email = "Email address is invalid";
+    const emailError = validateEmail(formData.email);
+    if (emailError) {
+      newErrors.email = emailError;
       isValid = false;
     }
 
-    // Mobile number validation
-    if (!formData.mobileNumber) {
-      newErrors.mobileNumber = "Mobile Number is required";
+    const mobileError = validatePhoneNumber(formData.mobileNumber);
+    if (mobileError) {
+      newErrors.mobileNumber = mobileError;
       isValid = false;
     }
 
-    // Emergency contact validation
-    if (!formData.emergencyContact) {
-      newErrors.emergencyContact = "Emergency Contact is required";
-      isValid = false;
-    } else if (formData.emergencyContact === formData.mobileNumber) {
-      newErrors.emergencyContact =
-        "Emergency Contact cannot be the same as your Mobile Number";
+    const emergencyError = validateEmergencyContact(
+      formData.emergencyContact,
+      formData.mobileNumber
+    );
+    if (emergencyError) {
+      newErrors.emergencyContact = emergencyError;
       isValid = false;
     }
 
-    // Password validation
-    if (!formData.password) {
-      newErrors.password = "Password is required";
+    const passwordError = validatePassword(formData.password);
+    if (passwordError) {
+      newErrors.password = passwordError;
       isValid = false;
-    } else if (formData.password.length < 8) {
-      newErrors.password = "Password must be at least 8 characters";
-      isValid = false;
-    } else {
-      // Additional password strength validation for Node.js backend
-      const hasUpperCase = /[A-Z]/.test(formData.password);
-      const hasLowerCase = /[a-z]/.test(formData.password);
-      const hasNumber = /\d/.test(formData.password);
-      const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(formData.password);
-
-      if (!hasUpperCase || !hasLowerCase || !hasNumber || !hasSpecialChar) {
-        newErrors.password =
-          "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character";
-        isValid = false;
-      }
     }
 
-    // Confirm Password validation
-    if (!formData.confirmPassword) {
-      newErrors.confirmPassword = "Please confirm your password";
-      isValid = false;
-    } else if (formData.password !== formData.confirmPassword) {
-      newErrors.confirmPassword = "Passwords do not match";
+    const confirmPasswordError = validateConfirmPassword(
+      formData.confirmPassword,
+      formData.password
+    );
+    if (confirmPasswordError) {
+      newErrors.confirmPassword = confirmPasswordError;
       isValid = false;
     }
 
     setErrors(newErrors);
     return isValid;
-  };
+  }, [formData]);
 
-  // Handle input change and update form data
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+  const handleInputChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const { name, value } = e.target;
 
-    // Clear error when user starts typing
-    if (errors[name as keyof FormErrors]) {
-      setErrors((prev) => ({
-        ...prev,
-        [name]: undefined,
-      }));
-    }
+      let sanitizedValue = sanitizeInput(value);
 
-    // Special case for emergency contact validation when mobile number changes
-    if (
-      (name === "mobileNumber" && value === formData.emergencyContact) ||
-      (name === "emergencyContact" && value === formData.mobileNumber)
-    ) {
-      setErrors((prev) => ({
-        ...prev,
-        emergencyContact:
-          "Emergency Contact cannot be the same as your Mobile Number",
-      }));
-    }
-  };
-
-  // Handle form submission
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    // Validate the form before proceeding
-    if (!validateForm()) return;
-
-    setIsLoading(true);
-    setErrors({}); // Clear previous errors
-    setSuccessMessage(""); // Clear success message
-
-    try {
-      // Call the registration API endpoint with Node.js backend
-      const response = await axios.post(
-        "http://localhost:5000/api/auth/register",
-        {
-          name: formData.name,
-          email: formData.email,
-          password: formData.password,
-          confirmPassword: formData.confirmPassword,
-          // Additional user data will be stored separately after registration
-          // We could add a profile update endpoint later for mobile/emergency contacts
-        }
-      );
-
-      console.log("Registration success:", response.data);
-
-      // Show success message and redirect to login page after a short delay
-      setSuccessMessage(
-        "Registration successful! Redirecting to login page..."
-      );
-      setTimeout(() => {
-        navigate("/login");
-      }, 2000);
-    } catch (error: unknown) {
-      console.error("Registration error:", error);
-
-      // Updated error handling for Node.js backend
-      let errorMessage = "Registration failed. Please try again.";
-
-      if (axios.isAxiosError(error)) {
-        const axiosError = error;
-        if (axiosError.response?.data) {
-          errorMessage =
-            axiosError.response.data.message ||
-            axiosError.response.data.errors ||
-            errorMessage;
-        }
+      // Special handling for phone numbers
+      if (name === "mobileNumber" || name === "emergencyContact") {
+        sanitizedValue = sanitizePhoneNumber(value);
       }
 
-      setErrors({ general: errorMessage });
-    } finally {
-      setIsLoading(false);
-    }
-  };
+      setFormData((prev) => ({
+        ...prev,
+        [name]: sanitizedValue,
+      }));
+
+      // Clear field-specific errors when user types
+      if (errors[name as keyof FormErrors]) {
+        setErrors((prev) => ({
+          ...prev,
+          [name]: undefined,
+        }));
+      }
+
+      // Special validation for emergency contact when mobile number changes
+      if (
+        name === "mobileNumber" &&
+        sanitizedValue === formData.emergencyContact
+      ) {
+        setErrors((prev) => ({
+          ...prev,
+          emergencyContact: ERROR_MESSAGES.EMERGENCY_SAME,
+        }));
+      }
+
+      if (
+        name === "emergencyContact" &&
+        sanitizedValue === formData.mobileNumber
+      ) {
+        setErrors((prev) => ({
+          ...prev,
+          emergencyContact: ERROR_MESSAGES.EMERGENCY_SAME,
+        }));
+      }
+    },
+    [errors, formData.emergencyContact, formData.mobileNumber]
+  );
+
+  const handleSubmit = useCallback(
+    async (e: React.FormEvent) => {
+      e.preventDefault();
+
+      if (!validateForm()) return;
+
+      setIsLoading(true);
+      setErrors({});
+      setSuccessMessage("");
+
+      try {
+        const response = await axios.post(
+          `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.REGISTER}`,
+          {
+            name: formData.name,
+            email: formData.email,
+            password: formData.password,
+            confirmPassword: formData.confirmPassword,
+          },
+          {
+            timeout: 15000,
+            headers: {
+              "Content-Type": "application/json",
+            },
+          }
+        );
+
+        console.log("Registration success:", response.data);
+        setSuccessMessage(SUCCESS_MESSAGES.REGISTRATION_SUCCESS);
+
+        setTimeout(() => {
+          navigate("/login");
+        }, REDIRECT_DELAY);
+      } catch (error) {
+        console.error("Registration error:", error);
+        const errorMessage = extractErrorMessage(error);
+        setErrors({ general: errorMessage });
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [formData, validateForm, navigate]
+  );
+
+  const togglePasswordVisibility = useCallback(
+    (field: "password" | "confirmPassword") => {
+      if (field === "password") {
+        setShowPassword((prev) => !prev);
+      } else {
+        setShowConfirmPassword((prev) => !prev);
+      }
+    },
+    []
+  );
+
+  const socialLoginButtons = useMemo(
+    () => [
+      {
+        icon: (
+          <FaGoogle className="h-4 w-4 sm:h-5 sm:w-5 text-red-500 mr-1 sm:mr-2" />
+        ),
+        label: "Google",
+        onClick: () => console.log("Google registration not implemented"),
+      },
+      {
+        icon: (
+          <FaFacebook className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600 mr-1 sm:mr-2" />
+        ),
+        label: "Facebook",
+        onClick: () => console.log("Facebook registration not implemented"),
+      },
+    ],
+    []
+  );
 
   return (
     <>
-      {/* Navbar at the top */}
       <Navbar />
-
-      {/* Spacer to prevent overlapping with the navbar */}
-      <div className="h-20 bg-transparent"></div>
+      <div className="h-20 bg-transparent" />
 
       <div
         className="min-h-screen flex flex-col justify-center py-6 px-4 sm:py-12 sm:px-6 lg:px-8 relative"
@@ -217,19 +527,15 @@ const RegisterPage: React.FC = () => {
           backgroundRepeat: "no-repeat",
         }}
       >
-        {/* Semi-transparent overlay */}
-        <div className="absolute inset-0 bg-black bg-opacity-50"></div>
+        <div className="absolute inset-0 bg-black bg-opacity-50" />
 
         <div className="sm:mx-auto sm:w-full sm:max-w-md z-10 relative">
           <div className="flex justify-center">
-            <Link to="/">
-              {/* Logo */}
-              <div className="flex items-center space-x-1">
-                <Brain className="h-10 w-10 text-blue-600" />
-                <span className="self-center text-2xl font-semibold whitespace-nowrap dark:text-white">
-                  MoodSync
-                </span>
-              </div>
+            <Link to="/" className="flex items-center space-x-1">
+              <Brain className="h-10 w-10 text-blue-600" />
+              <span className="self-center text-2xl font-semibold whitespace-nowrap text-white">
+                MoodSync
+              </span>
             </Link>
           </div>
           <h2 className="mt-4 sm:mt-6 text-center text-2xl sm:text-3xl font-extrabold text-white">
@@ -242,301 +548,116 @@ const RegisterPage: React.FC = () => {
 
         <div className="mt-6 sm:mt-8 sm:mx-auto sm:w-full sm:max-w-md relative z-10">
           <div className="bg-white py-6 px-4 shadow-2xl sm:rounded-lg sm:py-8 sm:px-10 backdrop-filter backdrop-blur-sm bg-opacity-95">
-            {/* General error message */}
             {errors.general && (
-              <div className="mb-4 bg-red-50 border-l-4 border-red-500 p-3 sm:p-4">
-                <div className="flex">
-                  <div className="flex-shrink-0">
-                    <svg
-                      className="h-4 w-4 sm:h-5 sm:w-5 text-red-400"
-                      xmlns="http://www.w3.org/2000/svg"
-                      viewBox="0 0 20 20"
-                      fill="currentColor"
-                    >
-                      <path
-                        fillRule="evenodd"
-                        d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-                        clipRule="evenodd"
-                      />
-                    </svg>
-                  </div>
-                  <div className="ml-3">
-                    <p className="text-xs sm:text-sm text-red-700">
-                      {errors.general}
-                    </p>
-                  </div>
-                </div>
-              </div>
+              <StatusMessage message={errors.general} type="error" />
             )}
-
-            {/* Success message */}
             {successMessage && (
-              <div className="mb-4 bg-green-50 border-l-4 border-green-500 p-3 sm:p-4">
-                <div className="flex">
-                  <div className="flex-shrink-0">
-                    <svg
-                      className="h-4 w-4 sm:h-5 sm:w-5 text-green-400"
-                      xmlns="http://www.w3.org/2000/svg"
-                      viewBox="0 0 20 20"
-                      fill="currentColor"
-                    >
-                      <path
-                        fillRule="evenodd"
-                        d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                        clipRule="evenodd"
-                      />
-                    </svg>
-                  </div>
-                  <div className="ml-3">
-                    <p className="text-xs sm:text-sm text-green-700">
-                      {successMessage}
-                    </p>
-                  </div>
-                </div>
-              </div>
+              <StatusMessage message={successMessage} type="success" />
             )}
 
-            {/* Registration form */}
             <form className="space-y-4 sm:space-y-6" onSubmit={handleSubmit}>
-              {/* Name - changed from username to name */}
-              <div>
-                <label
-                  htmlFor="name"
-                  className="block text-xs sm:text-sm font-medium text-gray-700"
-                >
-                  Full Name
-                </label>
-                <div className="mt-1">
-                  <input
-                    id="name"
-                    name="name"
-                    type="text"
-                    autoComplete="name"
-                    value={formData.name}
-                    onChange={handleChange}
-                    className={`appearance-none block w-full px-3 py-2 border ${
-                      errors.name ? "border-red-300" : "border-gray-300"
-                    } rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-xs sm:text-sm`}
-                  />
-                  {errors.name && (
-                    <p className="mt-1 text-xs sm:text-sm text-red-600">
-                      {errors.name}
-                    </p>
-                  )}
-                </div>
-              </div>
+              <FormInput
+                id="name"
+                name="name"
+                type="text"
+                label="Full Name"
+                value={formData.name}
+                error={errors.name}
+                autoComplete="name"
+                onChange={handleInputChange}
+                maxLength={100}
+              />
 
-              {/* Mobile Number */}
-              <div>
-                <label
-                  htmlFor="mobileNumber"
-                  className="block text-xs sm:text-sm font-medium text-gray-700"
-                >
-                  Mobile Number
-                </label>
-                <div className="mt-1">
-                  <input
-                    id="mobileNumber"
-                    name="mobileNumber"
-                    type="tel"
-                    autoComplete="tel"
-                    value={formData.mobileNumber}
-                    onChange={handleChange}
-                    className={`appearance-none block w-full px-3 py-2 border ${
-                      errors.mobileNumber ? "border-red-300" : "border-gray-300"
-                    } rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-xs sm:text-sm`}
-                  />
-                  {errors.mobileNumber && (
-                    <p className="mt-1 text-xs sm:text-sm text-red-600">
-                      {errors.mobileNumber}
-                    </p>
-                  )}
-                </div>
-              </div>
+              <FormInput
+                id="mobileNumber"
+                name="mobileNumber"
+                type="tel"
+                label="Mobile Number"
+                value={formData.mobileNumber}
+                error={errors.mobileNumber}
+                autoComplete="tel"
+                onChange={handleInputChange}
+                maxLength={20}
+              />
 
-              {/* Emergency Contact */}
-              <div>
-                <label
-                  htmlFor="emergencyContact"
-                  className="block text-xs sm:text-sm font-medium text-gray-700"
-                >
-                  Emergency Contact
-                </label>
-                <div className="mt-1">
-                  <input
-                    id="emergencyContact"
-                    name="emergencyContact"
-                    type="tel"
-                    autoComplete="tel"
-                    value={formData.emergencyContact}
-                    onChange={handleChange}
-                    className={`appearance-none block w-full px-3 py-2 border ${
-                      errors.emergencyContact
-                        ? "border-red-300"
-                        : "border-gray-300"
-                    } rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-xs sm:text-sm`}
-                  />
-                  {errors.emergencyContact && (
-                    <p className="mt-1 text-xs sm:text-sm text-red-600">
-                      {errors.emergencyContact}
-                    </p>
-                  )}
-                </div>
-              </div>
+              <FormInput
+                id="emergencyContact"
+                name="emergencyContact"
+                type="tel"
+                label="Emergency Contact"
+                value={formData.emergencyContact}
+                error={errors.emergencyContact}
+                autoComplete="tel"
+                onChange={handleInputChange}
+                maxLength={20}
+              />
 
-              {/* Email */}
-              <div>
-                <label
-                  htmlFor="email"
-                  className="block text-xs sm:text-sm font-medium text-gray-700"
-                >
-                  Email address
-                </label>
-                <div className="mt-1">
-                  <input
-                    id="email"
-                    name="email"
-                    type="email"
-                    autoComplete="email"
-                    value={formData.email}
-                    onChange={handleChange}
-                    className={`appearance-none block w-full px-3 py-2 border ${
-                      errors.email ? "border-red-300" : "border-gray-300"
-                    } rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-xs sm:text-sm`}
-                  />
-                  {errors.email && (
-                    <p className="mt-1 text-xs sm:text-sm text-red-600">
-                      {errors.email}
-                    </p>
-                  )}
-                </div>
-              </div>
+              <FormInput
+                id="email"
+                name="email"
+                type="email"
+                label="Email address"
+                value={formData.email}
+                error={errors.email}
+                autoComplete="email"
+                onChange={handleInputChange}
+                maxLength={255}
+              />
 
-              {/* Password */}
-              <div>
-                <label
-                  htmlFor="password"
-                  className="block text-xs sm:text-sm font-medium text-gray-700"
-                >
-                  Password
-                </label>
-                <div className="mt-1 relative">
-                  <input
-                    id="password"
-                    name="password"
-                    type={showPassword ? "text" : "password"}
-                    autoComplete="new-password"
-                    value={formData.password}
-                    onChange={handleChange}
-                    className={`appearance-none block w-full px-3 py-2 border ${
-                      errors.password ? "border-red-300" : "border-gray-300"
-                    } rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-xs sm:text-sm pr-10`}
-                  />
-                  <button
-                    type="button"
-                    className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-500 hover:text-gray-700"
-                    onClick={() => setShowPassword(!showPassword)}
-                  >
-                    {showPassword ? (
-                      <FaRegEyeSlash className="h-4 w-4 sm:h-5 sm:w-5" />
-                    ) : (
-                      <FaRegEye className="h-4 w-4 sm:h-5 sm:w-5" />
-                    )}
-                  </button>
-                  {errors.password && (
-                    <p className="mt-1 text-xs sm:text-sm text-red-600">
-                      {errors.password}
-                    </p>
-                  )}
-                </div>
-              </div>
+              <FormInput
+                id="password"
+                name="password"
+                type={showPassword ? "text" : "password"}
+                label="Password"
+                value={formData.password}
+                error={errors.password}
+                autoComplete="new-password"
+                onChange={handleInputChange}
+                showPasswordToggle
+                onTogglePassword={() => togglePasswordVisibility("password")}
+                maxLength={128}
+              />
 
-              {/* Confirm Password */}
-              <div>
-                <label
-                  htmlFor="confirmPassword"
-                  className="block text-xs sm:text-sm font-medium text-gray-700"
-                >
-                  Confirm Password
-                </label>
-                <div className="mt-1 relative">
-                  <input
-                    id="confirmPassword"
-                    name="confirmPassword"
-                    type={showConfirmPassword ? "text" : "password"}
-                    autoComplete="new-password"
-                    value={formData.confirmPassword}
-                    onChange={handleChange}
-                    className={`appearance-none block w-full px-3 py-2 border ${
-                      errors.confirmPassword
-                        ? "border-red-300"
-                        : "border-gray-300"
-                    } rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-xs sm:text-sm pr-10`}
-                  />
-                  <button
-                    type="button"
-                    className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-500 hover:text-gray-700"
-                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  >
-                    {showConfirmPassword ? (
-                      <FaRegEyeSlash className="h-4 w-4 sm:h-5 sm:w-5" />
-                    ) : (
-                      <FaRegEye className="h-4 w-4 sm:h-5 sm:w-5" />
-                    )}
-                  </button>
-                  {errors.confirmPassword && (
-                    <p className="mt-1 text-xs sm:text-sm text-red-600">
-                      {errors.confirmPassword}
-                    </p>
-                  )}
-                </div>
-              </div>
+              <FormInput
+                id="confirmPassword"
+                name="confirmPassword"
+                type={showConfirmPassword ? "text" : "password"}
+                label="Confirm Password"
+                value={formData.confirmPassword}
+                error={errors.confirmPassword}
+                autoComplete="new-password"
+                onChange={handleInputChange}
+                showPasswordToggle
+                onTogglePassword={() =>
+                  togglePasswordVisibility("confirmPassword")
+                }
+                maxLength={128}
+              />
 
-              {/* Submit button */}
               <div className="mt-4 sm:mt-6">
                 <button
                   type="submit"
                   disabled={isLoading}
-                  className={`w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-xs sm:text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${
+                  className={`w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-xs sm:text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors ${
                     isLoading ? "opacity-70 cursor-not-allowed" : ""
                   }`}
                 >
                   {isLoading ? (
                     <>
-                      <svg
-                        className="animate-spin -ml-1 mr-2 h-4 w-4 sm:h-5 sm:w-5 text-white"
-                        xmlns="http://www.w3.org/2000/svg"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                      >
-                        <circle
-                          className="opacity-25"
-                          cx="12"
-                          cy="12"
-                          r="10"
-                          stroke="currentColor"
-                          strokeWidth="4"
-                        ></circle>
-                        <path
-                          className="opacity-75"
-                          fill="currentColor"
-                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                        ></path>
-                      </svg>
+                      <LoadingSpinner />
                       Creating account...
                     </>
                   ) : (
-                    <>Create account</>
+                    "Create account"
                   )}
                 </button>
               </div>
             </form>
 
-            {/* Social login buttons */}
             <div className="mt-5 sm:mt-6">
               <div className="relative">
                 <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-gray-300"></div>
+                  <div className="w-full border-t border-gray-300" />
                 </div>
                 <div className="relative flex justify-center text-xs sm:text-sm">
                   <span className="px-2 bg-white text-gray-500">
@@ -546,29 +667,17 @@ const RegisterPage: React.FC = () => {
               </div>
 
               <div className="mt-4 sm:mt-5 grid grid-cols-2 gap-2 sm:gap-3">
-                <div>
-                  <button
-                    type="button"
-                    className="w-full inline-flex justify-center py-2 px-3 sm:px-4 border border-gray-300 rounded-md shadow-sm bg-white text-xs sm:text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                  >
-                    <FaGoogle className="h-4 w-4 sm:h-5 sm:w-5 text-red-500 mr-1 sm:mr-2" />
-                    <span>Google</span>
-                  </button>
-                </div>
-
-                <div>
-                  <button
-                    type="button"
-                    className="w-full inline-flex justify-center py-2 px-3 sm:px-4 border border-gray-300 rounded-md shadow-sm bg-white text-xs sm:text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                  >
-                    <FaFacebook className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600 mr-1 sm:mr-2" />
-                    <span>Facebook</span>
-                  </button>
-                </div>
+                {socialLoginButtons.map((button, index) => (
+                  <SocialLoginButton
+                    key={index}
+                    icon={button.icon}
+                    label={button.label}
+                    onClick={button.onClick}
+                  />
+                ))}
               </div>
             </div>
 
-            {/* Link to login page */}
             <div className="mt-4 sm:mt-6">
               <div className="text-center">
                 <Link
@@ -582,9 +691,8 @@ const RegisterPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Terms and Privacy Policy */}
         <div className="mt-4 sm:mt-8 text-center relative z-10 px-4">
-          <p className="text-xxs sm:text-xs text-white">
+          <p className="text-xs text-white">
             By creating an account, you agree to our{" "}
             <Link
               to="/terms"
@@ -603,7 +711,6 @@ const RegisterPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Footer at the bottom */}
       <Footer />
     </>
   );

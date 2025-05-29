@@ -17,15 +17,14 @@ const Footer: FC = () => {
 
   /**
    * Handles the newsletter subscription form submission.
-   * Currently logs the email and displays a success message.
-   * Future integration with a backend API can be added here.
+   * Logs the email and displays a success message.
    *
    * @param e - Form submission event
    */
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     try {
-      // Simulate the subscription process (e.g., API call)
+      // Simulate the subscription process
       console.log("Subscribed email:", email);
       setMessage("Thank you for subscribing!");
       setEmail("");
